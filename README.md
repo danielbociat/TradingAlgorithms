@@ -1,1 +1,3 @@
 # TradingAlgorithms
+
+## Bachelor Thesis ## 
