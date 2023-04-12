@@ -27,6 +27,9 @@ class TradingAlgorithm(ABC):
     def generate_signals(self):
         pass
 
+    def generate_benchmark(self, ticker="SPY", period="12mo", interval="1d"):
+        self.benchmark_data = yf.download(ticker, period=period, interval=interval)
+
     def execute_trades(self):
         self.data['Strategy Returns'] = self.data['Position'].shift(1) * self.data['Close'].pct_change()
         cumulative_returns = (self.data['Strategy Returns'] + 1).cumprod()
@@ -35,14 +38,11 @@ class TradingAlgorithm(ABC):
         plt.ylabel('Cumulative Returns')
         plt.show()
 
-    def generate_benchmark(self, ticker="SPY", period="12mo", interval="1d"):
-        self.benchmark_data = yf.download(ticker, period=period, interval=interval)
-
     def compute_alpha(self):
         self.generate_benchmark()
 
         self.benchmark_data['Benchmark Returns'] = self.benchmark_data['Close'].pct_change()
-        self.data['Strategy Returns'] = self.data['Close'].pct_change()
+        self.data['Strategy Returns'] = self.data['Position'].shift(1) * self.data['Close'].pct_change()
 
         self.data['Excess Returns'] = self.data['Strategy Returns'] - self.benchmark_data['Benchmark Returns']
 
@@ -83,7 +83,7 @@ class MeanReversal(TradingAlgorithm):
             else:
                 self.data['Signal'][i] = 0
 
-            self.data['Position'][i] = self.data['Signal'][i - 1]
+            self.data['Position'][i] = self.data['Signal'][i]
 
 
 class DoubleRSI(TradingAlgorithm):
@@ -107,7 +107,7 @@ class DoubleRSI(TradingAlgorithm):
             else:
                 self.data['Signal'][i] = 0
 
-            self.data['Position'][i] = self.data['Signal'][i]
+            self.data['Position'][i] = self.data['Signal'][i-1]
 
 
 if __name__ == "__main__":
@@ -119,8 +119,10 @@ if __name__ == "__main__":
     data = yf.download(ticker, period=period, interval=interval)
     print(data)
 
-    #mean_reversion = MeanReversal(data, 20)
-    #mean_reversion.run_algorithm()
+    mean_reversion = MeanReversal(data, 20)
+    mean_reversion.run_algorithm()
+
+    data = yf.download(ticker, period=period, interval=interval)
 
     double_rsi = DoubleRSI(data)
     double_rsi.run_algorithm()
