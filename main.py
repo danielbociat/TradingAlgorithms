@@ -42,9 +42,9 @@ class TradingAlgorithm(ABC):
         self.generate_benchmark()
 
         self.benchmark_data['Benchmark Returns'] = self.benchmark_data['Close'].pct_change()
-        self.data['Stock Returns'] = self.data['Close'].pct_change()
+        self.data['Strategy Returns'] = self.data['Close'].pct_change()
 
-        self.data['Excess Returns'] = self.data['Stock Returns'] - self.benchmark_data['Benchmark Returns']
+        self.data['Excess Returns'] = self.data['Strategy Returns'] - self.benchmark_data['Benchmark Returns']
 
         # Calculate the cumulative excess returns
         self.data['Cumulative Excess Returns'] = (1 + self.data['Excess Returns']).cumprod() - 1
@@ -59,13 +59,6 @@ class TradingAlgorithm(ABC):
         plt.xlabel('Time')
         plt.ylabel('Cumulative Excess Returns (Alpha)')
         plt.show()
-
-class DoubleRSI(TradingAlgorithm):
-    def prepare_data(self):
-        print("TODO: Preparing data")
-
-    def generate_signals(self):
-        print("TODO: Generate signals")
 
 
 class MeanReversal(TradingAlgorithm):
