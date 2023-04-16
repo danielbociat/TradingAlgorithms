@@ -6,11 +6,14 @@ import matplotlib.pyplot as plt
 import yfinance as yf
 import configparser
 import talib
+from flask import Flask, jsonify, request
+
 pd.options.mode.chained_assignment = None  # default='warn'
 config = configparser.RawConfigParser()
 config.read('config.ini')
 api_dict = dict(config.items('historical_data_api_key'))
 
+app = Flask(__name__)
 
 class TradingAlgorithm(ABC):
     def run_algorithm(self):
@@ -109,9 +112,24 @@ class DoubleRSI(TradingAlgorithm):
 
             self.data['Position'][i] = self.data['Signal'][i-1]
 
+@app.before_request
+def before():
+    print(request.json)
+
+@app.route('/run/', methods=['GET', 'POST'])
+def run_algorithm():
+    return "Hello World!"
+
+@app.route('/algorithms', methods=["GET"])
+def get_algorithms():
+    return "The existing algorithms are: 'double_rsi', 'mean_reversal', 'arbitrage'", 200
 
 if __name__ == "__main__":
+
+    app.run(host="0.0.0.0", port=8080, debug=True)
+
     # TEST
+    '''
     ticker = "AAPL"
     period = "12mo"
     interval = "1d"
@@ -126,3 +144,4 @@ if __name__ == "__main__":
 
     double_rsi = DoubleRSI(data)
     double_rsi.run_algorithm()
+    '''
