@@ -2,6 +2,8 @@ import yfinance as yf
 from flask import Flask, jsonify, request
 import configparser
 from trading_algorithms import *
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 pd.options.mode.chained_assignment = None  # default='warn'
 config = configparser.RawConfigParser()
@@ -27,22 +29,19 @@ def get_algorithms():
 
 
 if __name__ == "__main__":
-
-    app.run(host="0.0.0.0", port=8081, debug=True)
-
     # TEST
     '''
+    app.run(host="0.0.0.0", port=8081, debug=True)
     
-    ticker = "PL"
-    period = "7d"
-    interval = "5m"
+    
+    '''
+    ticker = "AAPL"
+    period = "12mo"
+    interval = "1d"
 
-    data = yf.download("^GSPC", period=period, interval=interval)
+    data = yf.download("AAPL", period=period, interval=interval)
     print(data)
 
-    futures_data = yf.download("ES=F", period=period, interval=interval)
-    print(futures_data)
-
-    arbitrage = Arbitrage(data, futures_data)
-    arbitrage.run_algorithm()
-    '''
+    mr = MeanReversal(data)
+    mr.run_algorithm()
+    mr.save_chart_html()

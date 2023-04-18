@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import talib
 import yfinance as yf
 import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 
 class TradingAlgorithm(ABC):
@@ -10,7 +12,6 @@ class TradingAlgorithm(ABC):
         self.prepare_data()
         self.generate_signals()
         self.execute_trades()
-        self.compute_alpha()
 
     @abstractmethod
     def prepare_data(self):
@@ -53,11 +54,30 @@ class TradingAlgorithm(ABC):
         plt.ylabel('Cumulative Excess Returns (Alpha)')
         plt.show()
 
+    def init_chart(self):
+        self.chart = make_subplots(specs=[[{"secondary_y": True}]])
+        self.chart.add_trace(go.Candlestick(x=self.data.index,
+                                            open=self.data['Open'],
+                                            high=self.data['High'],
+                                            low=self.data['Low'],
+                                            close=self.data['Close'],
+                                            ))
+
+    def update_chart(self):
+        pass
+
+    def save_chart_html(self):
+        self.chart.write_html(r'.\graph.html')
+
+    def save_chart_image(self):
+        self.chart.write_html(r'.\graph.jpg')
+
 
 class MeanReversal(TradingAlgorithm):
     def __init__(self, data, time_window=20):
         self.data = data
         self.time_window = time_window
+        self.init_chart()
 
     def prepare_data(self):
         self.data['Moving Average'] = self.data['Close'].rolling(window=self.time_window).mean()
@@ -66,6 +86,8 @@ class MeanReversal(TradingAlgorithm):
         self.data['Lower Band'] = self.data['Moving Average'] - (self.data['Standard Deviation'] * 2)
         self.data['Signal'] = 0
         self.data['Position'] = 0
+
+        self.update_chart()
 
     def generate_signals(self):
         for i in range(self.time_window, len(self.data)):
@@ -78,6 +100,9 @@ class MeanReversal(TradingAlgorithm):
 
             self.data['Position'][i] = self.data['Signal'][i]
 
+    def update_chart(self):
+        self.chart.add_trace(go.Scatter(x=self.data.index, y=self.data['Upper Band'], marker_color='blue', name='Upper Band'))
+        self.chart.add_trace(go.Scatter(x=self.data.index, y=self.data['Lower Band'], marker_color='red', name='Lower Band'))
 
 class DoubleRSI(TradingAlgorithm):
     def __init__(self, data, rsi_short_period=14, rsi_long_period=28):
@@ -100,7 +125,7 @@ class DoubleRSI(TradingAlgorithm):
             else:
                 self.data['Signal'][i] = 0
 
-            self.data['Position'][i] = self.data['Signal'][i-1]
+            self.data['Position'][i] = self.data['Signal'][i - 1]
 
 
 class Arbitrage(TradingAlgorithm):
@@ -127,14 +152,15 @@ class Arbitrage(TradingAlgorithm):
             elif -self.exit_threshold < self.data['Z-Score'][i] < self.exit_threshold:
                 self.data['Signal'][i] = 0
             else:
-                self.data['Signal'][i] = self.data['Signal'][i-1]
+                self.data['Signal'][i] = self.data['Signal'][i - 1]
 
             self.data['Position'][i] = self.data['Signal'][i]
 
     def execute_trades(self):
         self.data['SPY Returns'] = self.data['SPY'].pct_change()
         self.data['ES Returns'] = self.data['ES'].pct_change()
-        self.data['Strategy Returns'] = self.data['Position'].shift(1) * (self.data['SPY Returns'] - self.data['ES Returns'])
+        self.data['Strategy Returns'] = self.data['Position'].shift(1) * \
+                                        (self.data['SPY Returns'] - self.data['ES Returns'])
         cumulative_returns = (1 + self.data['Strategy Returns']).cumprod()
         plt.plot(cumulative_returns)
         plt.xlabel('Time')
