@@ -8,6 +8,11 @@ from plotly.subplots import make_subplots
 
 
 class TradingAlgorithm(ABC):
+    def __init__(self):
+        self.data = None
+        self.chart = None
+        self.benchmark_data = None
+
     def run_algorithm(self):
         self.prepare_data()
         self.generate_signals()
@@ -27,7 +32,7 @@ class TradingAlgorithm(ABC):
     def execute_trades(self):
         self.data['Strategy Returns'] = self.data['Position'].shift(1) * self.data['Close'].pct_change()
         cumulative_returns = (self.data['Strategy Returns'] + 1).cumprod()
-        plt.plot(cumulative_returns)
+        plt.plot(cumulative_returns) 
         plt.xlabel('Time')
         plt.ylabel('Cumulative Returns')
         plt.show()
@@ -103,6 +108,7 @@ class MeanReversal(TradingAlgorithm):
     def update_chart(self):
         self.chart.add_trace(go.Scatter(x=self.data.index, y=self.data['Upper Band'], marker_color='blue', name='Upper Band'))
         self.chart.add_trace(go.Scatter(x=self.data.index, y=self.data['Lower Band'], marker_color='red', name='Lower Band'))
+
 
 class DoubleRSI(TradingAlgorithm):
     def __init__(self, data, rsi_short_period=14, rsi_long_period=28):
