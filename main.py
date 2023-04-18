@@ -2,8 +2,6 @@ import yfinance as yf
 from flask import Flask, jsonify, request
 import configparser
 from trading_algorithms import *
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
 pd.options.mode.chained_assignment = None  # default='warn'
 config = configparser.RawConfigParser()
