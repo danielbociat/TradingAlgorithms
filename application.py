@@ -8,7 +8,7 @@ config = configparser.RawConfigParser()
 config.read('config.ini')
 api_dict = dict(config.items('historical_data_api_key'))
 
-app = Flask(__name__)
+application  = Flask(__name__)
 
 '''
 
@@ -17,19 +17,19 @@ def before():
     print(request.json)
 '''
 
-@app.route('/', methods=['GET', 'POST'])
+@application.route('/', methods=['GET', 'POST'])
 def run_algorithm():
     return "Hello World!"
 
 
-@app.route('/algorithms', methods=["GET"])
+@application.route('/algorithms', methods=["GET"])
 def get_algorithms():
     return "The existing algorithms are: 'double_rsi', 'mean_reversal', 'arbitrage'", 200
 
 
 if __name__ == "__main__":
     # TEST
-    app.run()
+    application.run()
 
     '''
     ticker = "AAPL"
