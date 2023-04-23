@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import matplotlib.pyplot as plt
-import talib
+import pandas_ta as ta
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
@@ -115,12 +115,15 @@ class DoubleRSI(TradingAlgorithm):
         self.data = data
         self.rsi_short_period = rsi_short_period
         self.rsi_long_period = rsi_long_period
+        self.init_chart()
 
     def prepare_data(self):
-        self.data['RSI Short'] = talib.RSI(self.data['Close'], timeperiod=self.rsi_short_period)
-        self.data['RSI Long'] = talib.RSI(self.data['Close'], timeperiod=self.rsi_long_period)
+        self.data['RSI Short'] = ta.rsi(self.data['Close'], length=self.rsi_short_period, append=True)
+        self.data['RSI Long'] = ta.rsi(self.data['Close'], length=self.rsi_long_period, append=True)
         self.data['Signal'] = 0
         self.data['Position'] = 0
+
+        self.update_chart()
 
     def generate_signals(self):
         for i in range(self.rsi_long_period, len(self.data)):
@@ -132,6 +135,10 @@ class DoubleRSI(TradingAlgorithm):
                 self.data['Signal'][i] = 0
 
             self.data['Position'][i] = self.data['Signal'][i - 1]
+
+    def update_chart(self):
+        self.chart.add_trace(go.Scatter(x=self.data.index, y=self.data['RSI Short'], marker_color='blue', name='RSI Short'))
+        self.chart.add_trace(go.Scatter(x=self.data.index, y=self.data['RSI Long'], marker_color='red', name='RSI Long'))
 
 
 class Arbitrage(TradingAlgorithm):

@@ -10,13 +10,14 @@ api_dict = dict(config.items('historical_data_api_key'))
 
 app = Flask(__name__)
 
+'''
 
 @app.before_request
 def before():
     print(request.json)
+'''
 
-
-@app.route('/run/', methods=['GET', 'POST'])
+@app.route('/', methods=['GET', 'POST'])
 def run_algorithm():
     return "Hello World!"
 
@@ -28,10 +29,8 @@ def get_algorithms():
 
 if __name__ == "__main__":
     # TEST
-    '''
-    app.run(host="0.0.0.0", port=8081, debug=True)
-    
-    
+    app.run()
+
     '''
     ticker = "AAPL"
     period = "12mo"
@@ -40,6 +39,9 @@ if __name__ == "__main__":
     data = yf.download("AAPL", period=period, interval=interval)
     print(data)
 
-    mr = MeanReversal(data)
+    data.to_csv("data.csv")
+
+    mr = DoubleRSI(data)
     mr.run_algorithm()
     mr.save_chart_html()
+    '''
