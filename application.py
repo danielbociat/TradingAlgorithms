@@ -2,13 +2,16 @@ import yfinance as yf
 from flask import Flask, jsonify, request
 import configparser
 from trading_algorithms import *
+import pandas as pd
 
 pd.options.mode.chained_assignment = None  # default='warn'
+
 config = configparser.RawConfigParser()
 config.read('config.ini')
 api_dict = dict(config.items('historical_data_api_key'))
 
-application  = Flask(__name__)
+
+application = Flask(__name__)
 
 '''
 
@@ -16,6 +19,7 @@ application  = Flask(__name__)
 def before():
     print(request.json)
 '''
+
 
 @application.route('/', methods=['GET', 'POST'])
 def run_algorithm():
