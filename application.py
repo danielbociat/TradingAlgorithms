@@ -6,10 +6,11 @@ import pandas as pd
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
+'''
 config = configparser.RawConfigParser()
 config.read('config.ini')
 api_dict = dict(config.items('historical_data_api_key'))
-
+'''
 
 application = Flask(__name__)
 
