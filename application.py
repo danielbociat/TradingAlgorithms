@@ -50,11 +50,11 @@ application.config["JWT_SECRET_KEY"] = get_secret("jwt_secret_key")
 application.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
 jwt = JWTManager(application)
 
-'''
-@app.before_request
+
+@application.before_request
 def before():
-    print(request.json)
-'''
+    if request.headers.get("content_type") == "application/json":
+        print(request.json)
 
 
 @application.route('/auth', methods=['POST'])
@@ -72,7 +72,7 @@ def auth():
 
 @application.route('/', methods=['GET', 'POST'])
 @jwt_required()
-def run_algorithm():
+def home():
     return "Hello World!"
 
 
@@ -80,31 +80,54 @@ def run_algorithm():
 @application.route('/configuration', methods=["GET"])
 @jwt_required()
 def get_algorithms():
-    return "The existing algorithms are: 'double_rsi', 'mean_reversal', 'arbitrage'", 200
+    return jsonify(
+        algorithm=['double_rsi', 'mean_reversal', 'arbitrage'],
+        period=['12mo'],
+        interval=['1d']
+    ), 200
 
 
-# TODO - add a simulation endpoint
+# TODO - complete simulation endpoint
 @application.route('/simulate', methods=["POST"])
 @jwt_required()
 def simulate():
-    return ""
+    try:
+        data = dict(request.json)
+
+        ticker = data.get("ticker", "AAPL")
+        period = data.get("period", "12mo")
+        interval = data.get("interval", "1d")
+
+        ticker_data = yf.download(ticker, period=period, interval=interval)
+
+        algorithm = data["algorithm"]
+
+        if algorithm == "double_rsi":
+            alg = DoubleRSI(ticker_data)
+            alg.run_algorithm()
+#           alg.save_chart_html()
+        elif algorithm == "mean_reversal":
+            alg = MeanReversal(ticker_data)
+            alg.run_algorithm()
+#           alg.save_chart_html()
+        elif algorithm == "arbitrage":
+            alg = Arbitrage(ticker_data)
+        else:
+            return "Wrong data sent in body", 400
+
+    except Exception as e:
+        print(e)
+        return "Wrong data sent in body", 400
+
+    return "Successful simulation", 200
+
+
+# TODO - complete benchmark endpoint
+@application.route('/benchmark', methods=["POST"])
+@jwt_required()
+def benchmark():
+    return "", 404
 
 
 if __name__ == "__main__":
-    # TEST
     application.run(debug=True)
-
-    '''
-    ticker = "AAPL"
-    period = "12mo"
-    interval = "1d"
-
-    data = yf.download("AAPL", period=period, interval=interval)
-    print(data)
-
-    data.to_csv("data.csv")
-
-    mr = DoubleRSI(data)
-    mr.run_algorithm()
-    mr.save_chart_html()
-    '''

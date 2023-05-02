@@ -141,6 +141,7 @@ class DoubleRSI(TradingAlgorithm):
         self.chart.add_trace(go.Scatter(x=self.data.index, y=self.data['RSI Long'], marker_color='red', name='RSI Long'))
 
 
+# TODO - review this
 class Arbitrage(TradingAlgorithm):
     def __init__(self, data, futures_data, entry_threshold=2, exit_threshold=0):
         self.spy_data = data
