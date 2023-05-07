@@ -124,7 +124,8 @@ def home():
         )
 
     except Exception as e:
-        return e
+        print(e)
+        raise e
 
     return 'Hello'
 
@@ -178,8 +179,6 @@ def simulate():
         )
 
     except Exception as e:
-        print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-        print(e)
         raise e
         return "FAIL", 400
 
