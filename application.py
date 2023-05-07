@@ -40,7 +40,6 @@ dax = amazondax.AmazonDaxClient.resource(
     region_name=region_name
 )
 
-
 def get_secret(key):
     secret_name = "jwt_secret_key"
 
@@ -109,7 +108,7 @@ def auth():
 def home():
     try:
         dax.put_item(
-            Table=TableName="DataCache",
+            TableName="DataCache",
             Item={
                 'ticker_period_interval': {'S': "SHOULD DISSAPEAR"},
                 'algorithm': {'S': "AAAAAAAAAAAAA"},
@@ -117,6 +116,7 @@ def home():
         )
 
         rsp = dax.get_item(
+            TableName="DataCache",
             Key={
                 'ticker_period_interval': {'S': "SHOULD DISSAPEAR"}
             }
@@ -124,7 +124,6 @@ def home():
 
     except Exception as e:
         return e
-
 
     return 'Hello'
 
