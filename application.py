@@ -3,6 +3,8 @@ from flask import Flask, jsonify, request
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token, get_jwt_identity
 )
+import uuid
+from flask_swagger_ui import get_swaggerui_blueprint
 import configparser
 from trading_algorithms import *
 import pandas as pd
@@ -10,6 +12,8 @@ from datetime import timedelta
 import boto3
 from botocore.exceptions import ClientError
 import json
+import amazondax
+
 pd.options.mode.chained_assignment = None  # default='warn'
 
 '''
@@ -18,25 +22,28 @@ config.read('config.ini')
 api_dict = dict(config.items('historical_data_api_key'))
 '''
 
+region_name = "eu-central-1"
+session = boto3.session.Session()
+
+secrets_manager = session.client(
+    service_name='secretsmanager',
+    region_name=region_name
+)
+
+dynamodb = boto3.client('dynamodb')
+
+dax = amazondax.AmazonDaxClient(endpoint_url='tradingalgorithmsdax.lwtvyq.dax-clusters.eu-central-1.amazonaws.com')
+dax_table = dax.Table('DataCache')
+
 
 def get_secret(key):
     secret_name = "jwt_secret_key"
-    region_name = "eu-central-1"
-
-    # Create a Secrets Manager client
-    session = boto3.session.Session()
-    client = session.client(
-        service_name='secretsmanager',
-        region_name=region_name
-    )
 
     try:
-        get_secret_value_response = client.get_secret_value(
+        get_secret_value_response = secrets_manager.get_secret_value(
             SecretId=secret_name
         )
     except ClientError as e:
-        # For a list of exceptions thrown, see
-        # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
         raise e
 
     # Decrypts secret using the associated KMS key.
@@ -49,6 +56,30 @@ application = Flask(__name__)
 application.config["JWT_SECRET_KEY"] = get_secret("jwt_secret_key")
 application.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
 jwt = JWTManager(application)
+
+'''
+SWAGGER_URL = '/api/docs'
+API_URL = 'trading-algorithms.eu-central-1.elasticbeanstalk.com'
+
+swagger_ui_blueprint = get_swaggerui_blueprint(
+    SWAGGER_URL,  # Swagger UI static files will be mapped to '{SWAGGER_URL}/dist/'
+    API_URL,
+    config={  # Swagger UI config overrides
+        'app_name': "Test application"
+    },
+    # oauth_config={  # OAuth config. See https://github.com/swagger-api/swagger-ui#oauth2-configuration .
+    #    'clientId': "your-client-id",
+    #    'clientSecret': "your-client-secret-if-required",
+    #    'realm': "your-realms",
+    #    'appName': "your-app-name",
+    #    'scopeSeparator': " ",
+    #    'additionalQueryStringParams': {'test': "hello"}
+    # }
+)
+
+application.register_blueprint(swagger_ui_blueprint)
+'''
+
 
 
 @application.before_request
@@ -71,9 +102,23 @@ def auth():
 
 
 @application.route('/', methods=['GET', 'POST'])
-@jwt_required()
 def home():
-    return "Hello World!"
+    dax_table.put_item(
+        Item={
+            'ticker_period_interval': {'S': "SHOULD DISSAPEAR"},
+            'algorithm': {'S': "AAAAAAAAAAAAA"},
+        }
+    )
+
+    rsp = dax_table.get_item(
+        Key={
+            'ticker_period_interval': {'S': "SHOULD DISSAPEAR"}
+        }
+    )
+
+    print(rsp)
+
+    return 'Hello'
 
 
 # TODO - add all the configuration details: algorithms, tickers, periods and intervals
@@ -81,7 +126,7 @@ def home():
 @jwt_required()
 def get_algorithms():
     return jsonify(
-        algorithm=['double_rsi', 'mean_reversal', 'arbitrage'],
+        algorithm=['double_rsi', 'mean_reversion', 'arbitrage'],
         period=['12mo'],
         interval=['1d']
     ), 200
@@ -100,20 +145,29 @@ def simulate():
 
         ticker_data = yf.download(ticker, period=period, interval=interval)
 
-        algorithm = data["algorithm"]
+        algorithm = data.get(["algorithm"], "")
 
         if algorithm == "double_rsi":
             alg = DoubleRSI(ticker_data)
-            alg.run_algorithm()
-#           alg.save_chart_html()
         elif algorithm == "mean_reversal":
-            alg = MeanReversal(ticker_data)
-            alg.run_algorithm()
-#           alg.save_chart_html()
+            alg = MeanReversion(ticker_data)
         elif algorithm == "arbitrage":
             alg = Arbitrage(ticker_data)
         else:
-            return "Wrong data sent in body", 400
+            return "The algorithm selected does not exist", 400
+
+        alg.run_algorithm()
+
+        dynamodb.put_item(
+            TableName="TradingAlgorithmsRun",
+            Item={
+                'run_id': {'S': str(uuid.uuid1())},
+                'algorithm': {'S': data["algorithm"]},
+                'ticker': {'S': ticker},
+                'period': {'S': period},
+                'interval': {'S': interval},
+            }
+        )
 
     except Exception as e:
         print(e)

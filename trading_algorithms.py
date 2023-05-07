@@ -78,7 +78,7 @@ class TradingAlgorithm(ABC):
         self.chart.write_html(r'.\graph.jpg')
 
 
-class MeanReversal(TradingAlgorithm):
+class MeanReversion(TradingAlgorithm):
     def __init__(self, data, time_window=20):
         self.data = data
         self.time_window = time_window
