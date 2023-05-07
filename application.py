@@ -104,7 +104,7 @@ def auth():
     return jsonify(access_token=access_token)
 
 
-@application.route('/', methods=['GET', 'POST'])
+@application.route('/home', methods=['GET', 'POST'])
 def home():
     try:
         dax.put_item(
@@ -169,7 +169,7 @@ def simulate():
             TableName="TradingAlgorithmsRun",
             Item={
                 'run_id': {'S': str(uuid.uuid1())},
-                'algorithm': {'S': data["algorithm"]},
+                'algorithm': {'S': algorithm},
                 'ticker': {'S': ticker},
                 'period': {'S': period},
                 'interval': {'S': interval},
