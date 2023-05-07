@@ -117,8 +117,9 @@ def home():
 
         items = rsp["Items"]
 
-        if len(items) > 0:
+        if len(items) == 0:
             return "Cache miss"
+        return "cache hit"
 
     except Exception as e:
         print(e)
