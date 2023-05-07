@@ -30,9 +30,16 @@ secrets_manager = session.client(
     region_name=region_name
 )
 
-dynamodb = boto3.client('dynamodb')
+dynamodb = boto3.client(
+    service_name='dynamodb',
+    region_name=region_name
+)
 
-dax = amazondax.AmazonDaxClient(endpoint_url='tradingalgorithmsdax.lwtvyq.dax-clusters.eu-central-1.amazonaws.com')
+dax = amazondax.AmazonDaxClient(
+    endpoint_url='daxs://tradingalgorithmsdax.lwtvyq.dax-clusters.eu-central-1.amazonaws.com',
+    region_name=region_name
+
+)
 dax_table = dax.Table('DataCache')
 
 
@@ -79,7 +86,6 @@ swagger_ui_blueprint = get_swaggerui_blueprint(
 
 application.register_blueprint(swagger_ui_blueprint)
 '''
-
 
 
 @application.before_request
