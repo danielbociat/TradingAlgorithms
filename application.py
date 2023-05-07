@@ -35,7 +35,7 @@ dynamodb = boto3.client(
     region_name=region_name
 )
 
-dax = amazondax.AmazonDaxClient.resource(
+dax = amazondax.AmazonDaxClient(
     endpoint_url='daxs://tradingalgorithmsdax.lwtvyq.dax-clusters.eu-central-1.amazonaws.com',
     region_name=region_name
 )
