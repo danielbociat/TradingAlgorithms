@@ -39,7 +39,6 @@ dax = amazondax.AmazonDaxClient.resource(
     endpoint_url='daxs://tradingalgorithmsdax.lwtvyq.dax-clusters.eu-central-1.amazonaws.com',
     region_name=region_name
 )
-dax_table = dax.Table('DataCache')
 
 
 def get_secret(key):
@@ -108,20 +107,24 @@ def auth():
 
 @application.route('/', methods=['GET', 'POST'])
 def home():
-    dax_table.put_item(
-        Item={
-            'ticker_period_interval': {'S': "SHOULD DISSAPEAR"},
-            'algorithm': {'S': "AAAAAAAAAAAAA"},
-        }
-    )
+    try:
+        dax.put_item(
+            Table=TableName="DataCache",
+            Item={
+                'ticker_period_interval': {'S': "SHOULD DISSAPEAR"},
+                'algorithm': {'S': "AAAAAAAAAAAAA"},
+            }
+        )
 
-    rsp = dax_table.get_item(
-        Key={
-            'ticker_period_interval': {'S': "SHOULD DISSAPEAR"}
-        }
-    )
+        rsp = dax.get_item(
+            Key={
+                'ticker_period_interval': {'S': "SHOULD DISSAPEAR"}
+            }
+        )
 
-    print(rsp)
+    except Exception as e:
+        return e
+
 
     return 'Hello'
 
@@ -154,7 +157,7 @@ def simulate():
 
         if algorithm == "double_rsi":
             alg = DoubleRSI(ticker_data)
-        elif algorithm == "mean_reversal":
+        elif algorithm == "mean_reversion":
             alg = MeanReversion(ticker_data)
         elif algorithm == "arbitrage":
             alg = Arbitrage(ticker_data)
@@ -175,8 +178,7 @@ def simulate():
         )
 
     except Exception as e:
-        print(e)
-        return "Wrong data sent in body", 400
+        return str(e), 400
 
     return "Successful simulation", 200
 
