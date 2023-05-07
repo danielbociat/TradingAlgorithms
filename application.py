@@ -13,6 +13,7 @@ import boto3
 from botocore.exceptions import ClientError
 import json
 import amazondax
+from elasticache_pyclient import MemcacheClient
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
@@ -39,6 +40,8 @@ dax = amazondax.AmazonDaxClient(
     endpoint_url='daxs://tradingalgorithmsdax.lwtvyq.dax-clusters.eu-central-1.amazonaws.com',
     region_name=region_name
 )
+
+mc = MemcacheClient('tradingalgortihmsmemcache.lwtvyq.0001.euc1.cache.amazonaws.com:11211')
 
 
 def get_secret(key):
@@ -108,19 +111,10 @@ def auth():
 @application.route('/home', methods=['GET', 'POST'])
 def home():
     try:
-        rsp = dax.get_item(
-            TableName="DataCache",
-            Key={
-                'ticker_period_interval': {'S': "SHOULD DISSAPEAR"}
-            }
-        )
-
-        items = rsp["Items"]
-
-        if len(items) == 0:
-            return "Cache miss"
-        return "cache hit"
-
+        print("CACHE")
+        print(mc.set('foo', 'bar'))
+        a = mc.get('foo')
+        print(a)
     except Exception as e:
         print(e)
         raise e
