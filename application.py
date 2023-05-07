@@ -153,7 +153,7 @@ def simulate():
 
         ticker_data = yf.download(ticker, period=period, interval=interval)
 
-        algorithm = data.get(["algorithm"], "")
+        algorithm = data.get("algorithm", "")
 
         if algorithm == "double_rsi":
             alg = DoubleRSI(ticker_data)
