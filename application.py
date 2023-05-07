@@ -108,20 +108,14 @@ def auth():
 @application.route('/home', methods=['GET', 'POST'])
 def home():
     try:
-        dax.put_item(
-            TableName="DataCache",
-            Item={
-                'ticker_period_interval': {'S': "SHOULD DISSAPEAR"},
-                'algorithm': {'S': "AAAAAAAAAAAAA"},
-            }
-        )
-
         rsp = dax.get_item(
             TableName="DataCache",
             Key={
                 'ticker_period_interval': {'S': "SHOULD DISSAPEAR"}
             }
         )
+
+        print(rsp)
 
     except Exception as e:
         print(e)
