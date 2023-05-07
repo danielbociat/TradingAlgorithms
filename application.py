@@ -40,6 +40,7 @@ dax = amazondax.AmazonDaxClient.resource(
     region_name=region_name
 )
 
+
 def get_secret(key):
     secret_name = "jwt_secret_key"
 
@@ -177,7 +178,8 @@ def simulate():
         )
 
     except Exception as e:
-        return str(e), 400
+        print(e)
+        return "FAIL", 400
 
     return "Successful simulation", 200
 
