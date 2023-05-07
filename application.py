@@ -178,7 +178,9 @@ def simulate():
         )
 
     except Exception as e:
+        print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
         print(e)
+        raise e
         return "FAIL", 400
 
     return "Successful simulation", 200
