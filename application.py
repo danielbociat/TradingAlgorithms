@@ -38,7 +38,6 @@ dynamodb = boto3.client(
 dax = amazondax.AmazonDaxClient(
     endpoint_url='daxs://tradingalgorithmsdax.lwtvyq.dax-clusters.eu-central-1.amazonaws.com',
     region_name=region_name
-
 )
 dax_table = dax.Table('DataCache')
 
