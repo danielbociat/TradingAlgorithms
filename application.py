@@ -12,7 +12,6 @@ from datetime import timedelta
 import boto3
 from botocore.exceptions import ClientError
 import json
-import amazondax
 from elasticache_pyclient import MemcacheClient
 
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -115,18 +114,6 @@ def auth():
 
 @application.route('/', methods=['GET', 'POST'])
 def home():
-    try:
-        a = memcache.get('foo')
-
-        if a is not None:
-            return str(a), 200
-        else:
-            return "CACHE MISS"
-
-    except Exception as e:
-        print(e)
-        raise e
-
     return 'Hello'
 
 
