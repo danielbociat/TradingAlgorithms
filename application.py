@@ -36,11 +36,6 @@ dynamodb = boto3.client(
     region_name=region_name
 )
 
-dax = amazondax.AmazonDaxClient(
-    endpoint_url='daxs://tradingalgorithmsdax.lwtvyq.dax-clusters.eu-central-1.amazonaws.com',
-    region_name=region_name
-)
-
 mc = MemcacheClient('tradingalgortihmsmemcache.lwtvyq.0001.euc1.cache.amazonaws.com:11211')
 
 
@@ -108,13 +103,16 @@ def auth():
     return jsonify(access_token=access_token)
 
 
-@application.route('/home', methods=['GET', 'POST'])
+@application.route('/', methods=['GET', 'POST'])
 def home():
     try:
-        print("CACHE")
-        print(mc.set('foo', 'bar'))
         a = mc.get('foo')
-        print(a)
+
+        if a is not None:
+            return str(a), 200
+        else:
+            return "CACHE MISS"
+
     except Exception as e:
         print(e)
         raise e
