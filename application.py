@@ -23,6 +23,16 @@ config.read('config.ini')
 api_dict = dict(config.items('historical_data_api_key'))
 '''
 
+
+def connect_to_memcache(url):
+    connection = None
+    try:
+        connection = MemcacheClient(url)
+    except Exception:
+        pass
+    return connection
+
+
 region_name = "eu-central-1"
 session = boto3.session.Session()
 
@@ -36,7 +46,7 @@ dynamodb = boto3.client(
     region_name=region_name
 )
 
-mc = MemcacheClient('tradingalgortihmsmemcache.lwtvyq.0001.euc1.cache.amazonaws.com:11211')
+memcache_connection = connect_to_memcache('tradingalgortihmsmemcache.lwtvyq.0001.euc1.cache.amazonaws.com:11211')
 
 
 def get_secret(key):
@@ -106,7 +116,7 @@ def auth():
 @application.route('/', methods=['GET', 'POST'])
 def home():
     try:
-        a = mc.get('foo')
+        a = memcache_connection.get('foo')
 
         if a is not None:
             return str(a), 200
