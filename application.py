@@ -46,7 +46,7 @@ dynamodb = boto3.client(
     region_name=region_name
 )
 
-memcache_connection = connect_to_memcache('tradingalgortihmsmemcache.lwtvyq.0001.euc1.cache.amazonaws.com:11211')
+memcache = connect_to_memcache('tradingalgortihmsmemcache.lwtvyq.0001.euc1.cache.amazonaws.com:11211')
 
 
 def get_secret(key):
@@ -116,7 +116,7 @@ def auth():
 @application.route('/', methods=['GET', 'POST'])
 def home():
     try:
-        a = memcache_connection.get('foo')
+        a = memcache.get('foo')
 
         if a is not None:
             return str(a), 200
