@@ -101,15 +101,13 @@ def get_financial_data(ticker, period, interval):
         ticker_data = memcache.get(key)
 
     if ticker_data is None:
-        print("MISS")
         ticker_data = yf.download(ticker, period=period, interval=interval)
 
         if memcache is not None:
             memcache.set(key, ticker_data)
-    else:
-        print("HIT")
 
     return ticker_data
+
 
 @application.before_request
 def before():
@@ -171,6 +169,7 @@ def simulate():
             return "The algorithm selected does not exist", 400
 
         alg.run_algorithm()
+        alg.save_chart_html()
 
         dynamodb.put_item(
             TableName="TradingAlgorithmsRun",
