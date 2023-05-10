@@ -93,6 +93,21 @@ application.register_blueprint(swagger_ui_blueprint)
 '''
 
 
+def get_financial_data(ticker, period, interval):
+    key = ticker + period + interval
+    ticker_data = None
+
+    if memcache is not None:
+        ticker_data = memcache.get(key)
+
+    if ticker_data is None:
+        ticker_data = yf.download(ticker, period=period, interval=interval)
+
+        if memcache is not None:
+            memcache.set(key, ticker_data)
+
+    return ticker_data
+
 @application.before_request
 def before():
     if request.headers.get("content_type") == "application/json":
@@ -139,7 +154,7 @@ def simulate():
         period = data.get("period", "12mo")
         interval = data.get("interval", "1d")
 
-        ticker_data = yf.download(ticker, period=period, interval=interval)
+        ticker_data = get_financial_data(ticker, period, interval)
 
         algorithm = data.get("algorithm", "")
 
