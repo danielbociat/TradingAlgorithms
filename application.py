@@ -101,11 +101,13 @@ def get_financial_data(ticker, period, interval):
         ticker_data = memcache.get(key)
 
     if ticker_data is None:
-        print("HIT")
+        print("MISS")
         ticker_data = yf.download(ticker, period=period, interval=interval)
 
         if memcache is not None:
             memcache.set(key, ticker_data)
+    else:
+        print("HIT")
 
     return ticker_data
 
