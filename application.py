@@ -1,16 +1,21 @@
+import string
+from io import StringIO
 import yfinance as yf
 from flask import Flask, jsonify, request
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token, get_jwt_identity
 )
-import uuid
+import random
+import datetime
 from flask_swagger_ui import get_swaggerui_blueprint
 import configparser
 from trading_algorithms import *
 import pandas as pd
 from datetime import timedelta
 import boto3
+from boto3.dynamodb.conditions import Key, Attr
 from botocore.exceptions import ClientError
+
 import json
 from elasticache_pyclient import MemcacheClient
 
@@ -40,12 +45,20 @@ secrets_manager = session.client(
     region_name=region_name
 )
 
-dynamodb = boto3.client(
+dynamodb = boto3.resource(
     service_name='dynamodb',
     region_name=region_name
 )
+table = dynamodb.Table("TradingAlgorithmsRuns")
 
 memcache = connect_to_memcache('tradingalgortihmsmemcache.lwtvyq.0001.euc1.cache.amazonaws.com:11211')
+
+s3 = boto3.client('s3')
+BUCKET_NAME = "tradingalgorithmscharts"
+
+
+def get_chart_link(chart_name):
+    return "https://" + BUCKET_NAME + ".s3.eu-central-1.amazonaws.com/" + chart_name
 
 
 def get_secret(key):
@@ -64,33 +77,23 @@ def get_secret(key):
     return secrets[key]
 
 
+# Application
 application = Flask(__name__)
 application.config["JWT_SECRET_KEY"] = get_secret("jwt_secret_key")
 application.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
 jwt = JWTManager(application)
 
-'''
-SWAGGER_URL = '/api/docs'
-API_URL = 'trading-algorithms.eu-central-1.elasticbeanstalk.com'
-
-swagger_ui_blueprint = get_swaggerui_blueprint(
-    SWAGGER_URL,  # Swagger UI static files will be mapped to '{SWAGGER_URL}/dist/'
+SWAGGER_URL = '/swagger'
+API_URL = '/static/swagger.json'
+SWAGGER_BLUEPRINT = get_swaggerui_blueprint(
+    SWAGGER_URL,
     API_URL,
-    config={  # Swagger UI config overrides
-        'app_name': "Test application"
-    },
-    # oauth_config={  # OAuth config. See https://github.com/swagger-api/swagger-ui#oauth2-configuration .
-    #    'clientId': "your-client-id",
-    #    'clientSecret': "your-client-secret-if-required",
-    #    'realm': "your-realms",
-    #    'appName': "your-app-name",
-    #    'scopeSeparator': " ",
-    #    'additionalQueryStringParams': {'test': "hello"}
-    # }
+    config={
+        'app_name': "Todo List API"
+    }
 )
 
-application.register_blueprint(swagger_ui_blueprint)
-'''
+application.register_blueprint(SWAGGER_BLUEPRINT, url_prefix=SWAGGER_URL)
 
 
 def get_financial_data(ticker, period, interval):
@@ -169,24 +172,41 @@ def simulate():
             return "The algorithm selected does not exist", 400
 
         alg.run_algorithm()
-        alg.save_chart_html()
 
-        dynamodb.put_item(
-            TableName="TradingAlgorithmsRun",
+        chart_name = ''.join(random.sample(string.ascii_letters + string.digits, 16))
+
+        str_obj = StringIO()  # instantiate in-memory string object
+        alg.chart.write_html(str_obj, 'html')  # saving to memory string object
+        buf = str_obj.getvalue().encode()  # convert in-memory string to bytes
+        s3.put_object(
+            Bucket=BUCKET_NAME,
+            Key=f'{chart_name}',
+            Body=buf,
+            ContentType='text/html'
+        )
+
+        table.put_item(
+            TableName="TradingAlgorithmsRuns",
             Item={
-                'run_id': {'S': str(uuid.uuid1())},
-                'algorithm': {'S': algorithm},
-                'ticker': {'S': ticker},
-                'period': {'S': period},
-                'interval': {'S': interval},
+                'timestamp_period': "".join([datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), '_', period]),
+                'algorithm': algorithm,
+                'ticker': ticker,
+                'period': period,
+                'interval': interval,
             }
         )
 
     except Exception as e:
         raise e
-        return "FAIL", 400
+        return "Simulation failed", 400
 
-    return "Successful simulation", 200
+    return "Successful simulation\n See the trading chart at " + get_chart_link(chart_name), 200
+
+
+@application.route('/statistics', methods=["GET"])
+@jwt_required()
+def statistics():
+    return "", 404
 
 
 # TODO - complete benchmark endpoint
