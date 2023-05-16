@@ -101,7 +101,6 @@ def get_financial_data(ticker, period, interval):
     ticker_data = None
 
     if memcache is not None:
-        memcache.set(key, ticker_data, 1)
         ticker_data = memcache.get(key)
 
     if ticker_data is None:
