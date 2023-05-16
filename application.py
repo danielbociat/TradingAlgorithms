@@ -3,7 +3,7 @@ from io import StringIO
 import yfinance as yf
 from flask import Flask, jsonify, request
 from flask_jwt_extended import (
-    JWTManager, jwt_required, create_access_token, get_jwt_identity
+    JWTManager, jwt_required, create_access_token
 )
 import random
 import datetime
@@ -101,13 +101,14 @@ def get_financial_data(ticker, period, interval):
     ticker_data = None
 
     if memcache is not None:
+        memcache.set(key, ticker_data, 1)
         ticker_data = memcache.get(key)
 
     if ticker_data is None:
         ticker_data = yf.download(ticker, period=period, interval=interval)
 
         if memcache is not None:
-            memcache.set(key, ticker_data)
+            memcache.set(key, ticker_data, 3*60*60)
 
     return ticker_data
 
@@ -167,7 +168,7 @@ def simulate():
         elif algorithm == "mean_reversion":
             alg = MeanReversion(ticker_data)
         elif algorithm == "arbitrage":
-            alg = Arbitrage(ticker_data)
+            alg = Arbitrage(ticker_data, ticker_data)
         else:
             return "The algorithm selected does not exist", 400
 
@@ -196,8 +197,7 @@ def simulate():
             }
         )
 
-    except Exception as e:
-        raise e
+    except Exception:
         return "Simulation failed", 400
 
     return "Successful simulation\n See the trading chart at " + get_chart_link(chart_name), 200
