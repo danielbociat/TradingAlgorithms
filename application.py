@@ -131,6 +131,7 @@ def auth():
     return jsonify(access_token=access_token)
 
 
+# TODO: Remove this
 @application.route('/', methods=['GET', 'POST'])
 def home():
     try:
@@ -162,7 +163,7 @@ def get_algorithms():
     ), 200
 
 
-# TODO - complete simulation endpoint
+# TODO - Add simulation stats to dynamo db
 @application.route('/simulate', methods=["POST"])
 @jwt_required()
 def simulate():
@@ -218,13 +219,14 @@ def simulate():
     return "Successful simulation\n See the trading chart at " + get_chart_link(chart_name), 200
 
 
+# TODO : Add endpoints for statistics => look into dynamodb queries
 @application.route('/statistics', methods=["GET"])
 @jwt_required()
 def statistics():
     return "", 404
 
 
-# TODO - complete benchmark endpoint
+# TODO - add benchmark endpoint
 @application.route('/benchmark', methods=["POST"])
 @jwt_required()
 def benchmark():

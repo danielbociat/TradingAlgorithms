@@ -8,6 +8,7 @@ from plotly.subplots import make_subplots
 import numpy as np
 
 
+# TODO : Remove/Clear financial data from the class, add it as parameter
 class TradingAlgorithm(ABC):
     def __init__(self):
         self.data = None
@@ -57,6 +58,7 @@ class TradingAlgorithm(ABC):
                 current_pos = row["Position"]
                 start_price = row["Close"]
 
+    # TODO: Refactor to allow for a general situation, not only yearly; Remove completely??
     def compute_alpha(self):
         self.generate_benchmark()
 
@@ -88,12 +90,14 @@ class TradingAlgorithm(ABC):
                                             close=self.data['Close'],
                                             ))
 
+    # TODO : Update charts to allow for multiple subcharts (RSI), charts (Arbitrage) and display buying and selling points
     def update_chart(self):
         pass
 
     def save_chart_html(self):
         self.chart.write_html(r'.\graph.html')
 
+    # TODO : Review this, maybe add some more things => look TradingView
     def populate_simulation_stats(self):
         self.simulation_stats["Number of trades"] = len(self.cumulative_returns)
         self.simulation_stats["Profitable trades"] = len([y for x, y in zip([1]+self.cumulative_returns, self.cumulative_returns) if y > x])
@@ -175,7 +179,7 @@ class DoubleRSI(TradingAlgorithm):
         super().populate_simulation_stats()
 
 
-# TODO - review this
+# TODO - review this, find a way to map tickers and futures
 class Arbitrage(TradingAlgorithm):
     def __init__(self, data, futures_data, entry_threshold=2, exit_threshold=0):
         super().__init__()
