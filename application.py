@@ -133,6 +133,21 @@ def auth():
 
 @application.route('/', methods=['GET', 'POST'])
 def home():
+    try:
+        ticker = "AAPL"
+        period = "12mo"
+        interval = "1d"
+
+        ticker_data = get_financial_data(ticker, period, interval)
+
+        alg = MeanReversion(ticker_data)
+
+        alg.run_algorithm()
+
+        print(alg.simulation_stats)
+    except Exception as e:
+        print(e)
+
     return 'Hello'
 
 
@@ -172,6 +187,8 @@ def simulate():
             return "The algorithm selected does not exist", 400
 
         alg.run_algorithm()
+
+        print(alg.simulation_stats)
 
         chart_name = ''.join(random.sample(string.ascii_letters + string.digits, 16))
         str_obj = StringIO()  # instantiate in-memory string object

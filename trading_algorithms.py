@@ -5,6 +5,7 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import numpy as np
 
 
 class TradingAlgorithm(ABC):
@@ -12,13 +13,14 @@ class TradingAlgorithm(ABC):
         self.data = None
         self.chart = None
         self.benchmark_data = None
-        self.cumulative_returns = None
+        self.cumulative_returns = list()
         self.simulation_stats = dict()
 
     def run_algorithm(self):
         self.prepare_data()
         self.generate_signals()
         self.execute_trades()
+        self.populate_simulation_stats()
 
     @abstractmethod
     def prepare_data(self):
@@ -32,12 +34,28 @@ class TradingAlgorithm(ABC):
         self.benchmark_data = yf.download(ticker, period=period, interval=interval)
 
     def execute_trades(self):
-        self.data['Strategy Returns'] = self.data['Position'].shift(1) * self.data['Close'].pct_change()
-        self.cumulative_returns = (self.data['Strategy Returns'] + 1).cumprod()
-        plt.plot(self.cumulative_returns)
-        plt.xlabel('Time')
-        plt.ylabel('Cumulative Returns')
-        plt.show()
+        current_pos = 0
+        start_price = 0
+        current_sum = 1
+        self.data['Position'] = self.data['Position'].shift(1)
+
+        for index, row in self.data.iterrows():
+            if row["Position"] * current_pos < 0:
+                # Execute trade
+                end_price = row["Close"]
+                current_sum = current_sum * ((end_price/start_price) ** current_pos)
+
+                # print(start_price, end_price, current_pos, current_sum)
+
+                # Switch position
+                current_pos = row["Position"]
+                start_price = end_price
+
+                self.cumulative_returns.append(current_sum)
+
+            if current_pos == 0 and row["Position"] in [-1, 1]:
+                current_pos = row["Position"]
+                start_price = row["Close"]
 
     def compute_alpha(self):
         self.generate_benchmark()
@@ -59,7 +77,7 @@ class TradingAlgorithm(ABC):
         plt.plot(self.data['Cumulative Excess Returns'])
         plt.xlabel('Time')
         plt.ylabel('Cumulative Excess Returns (Alpha)')
-        plt.show()
+        # plt.show()
 
     def init_chart(self):
         self.chart = make_subplots(specs=[[{"secondary_y": True}]])
@@ -76,9 +94,18 @@ class TradingAlgorithm(ABC):
     def save_chart_html(self):
         self.chart.write_html(r'.\graph.html')
 
+    def populate_simulation_stats(self):
+        self.simulation_stats["Number of trades"] = len(self.cumulative_returns)
+        self.simulation_stats["Profitable trades"] = len([y for x, y in zip([1]+self.cumulative_returns, self.cumulative_returns) if y > x])
+        self.simulation_stats["Holding Result"] = self.data.iloc[-1]["Close"] / self.data.iloc[0]["Close"] - 1
+        self.simulation_stats["Strategy Result"] = self.cumulative_returns[-1] - 1
+        self.simulation_stats["Max Profit"] = np.nanmax(self.cumulative_returns) - 1
+        self.simulation_stats["Max Loss"] = np.nanmin(self.cumulative_returns) - 1
+
 
 class MeanReversion(TradingAlgorithm):
     def __init__(self, data, time_window=20):
+        super().__init__()
         self.data = data
         self.time_window = time_window
         self.init_chart()
@@ -113,6 +140,7 @@ class MeanReversion(TradingAlgorithm):
 
 class DoubleRSI(TradingAlgorithm):
     def __init__(self, data, rsi_short_period=14, rsi_long_period=28):
+        super().__init__()
         self.data = data
         self.rsi_short_period = rsi_short_period
         self.rsi_long_period = rsi_long_period
@@ -143,10 +171,14 @@ class DoubleRSI(TradingAlgorithm):
         self.chart.add_trace(
             go.Scatter(x=self.data.index, y=self.data['RSI Long'], marker_color='red', name='RSI Long'))
 
+    def populate_simulation_stats(self):
+        super().populate_simulation_stats()
+
 
 # TODO - review this
 class Arbitrage(TradingAlgorithm):
     def __init__(self, data, futures_data, entry_threshold=2, exit_threshold=0):
+        super().__init__()
         self.spy_data = data
         self.es_data = futures_data
         self.entry_threshold = entry_threshold
@@ -173,9 +205,10 @@ class Arbitrage(TradingAlgorithm):
     def execute_trades(self):
         self.data['SPY Returns'] = self.data['SPY'].pct_change()
         self.data['ES Returns'] = self.data['ES'].pct_change()
-        self.data['Strategy Returns'] = self.data['Position'].shift(1) * (self.data['SPY Returns'] - self.data['ES Returns'])
+        self.data['Strategy Returns'] = self.data['Position'].shift(1) * (
+                self.data['SPY Returns'] - self.data['ES Returns'])
         self.cumulative_returns = (1 + self.data['Strategy Returns']).cumprod()
         plt.plot(self.cumulative_returns)
         plt.xlabel('Time')
         plt.ylabel('Cumulative Returns')
-        plt.show()
+        # plt.show()
