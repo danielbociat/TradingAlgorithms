@@ -12,6 +12,8 @@ class TradingAlgorithm(ABC):
         self.data = None
         self.chart = None
         self.benchmark_data = None
+        self.cumulative_returns = None
+        self.simulation_stats = dict()
 
     def run_algorithm(self):
         self.prepare_data()
@@ -31,8 +33,8 @@ class TradingAlgorithm(ABC):
 
     def execute_trades(self):
         self.data['Strategy Returns'] = self.data['Position'].shift(1) * self.data['Close'].pct_change()
-        cumulative_returns = (self.data['Strategy Returns'] + 1).cumprod()
-        plt.plot(cumulative_returns) 
+        self.cumulative_returns = (self.data['Strategy Returns'] + 1).cumprod()
+        plt.plot(self.cumulative_returns)
         plt.xlabel('Time')
         plt.ylabel('Cumulative Returns')
         plt.show()
@@ -74,9 +76,6 @@ class TradingAlgorithm(ABC):
     def save_chart_html(self):
         self.chart.write_html(r'.\graph.html')
 
-    def save_chart_image(self):
-        self.chart.write_html(r'.\graph.jpg')
-
 
 class MeanReversion(TradingAlgorithm):
     def __init__(self, data, time_window=20):
@@ -106,8 +105,10 @@ class MeanReversion(TradingAlgorithm):
             self.data['Position'][i] = self.data['Signal'][i]
 
     def update_chart(self):
-        self.chart.add_trace(go.Scatter(x=self.data.index, y=self.data['Upper Band'], marker_color='blue', name='Upper Band'))
-        self.chart.add_trace(go.Scatter(x=self.data.index, y=self.data['Lower Band'], marker_color='red', name='Lower Band'))
+        self.chart.add_trace(
+            go.Scatter(x=self.data.index, y=self.data['Upper Band'], marker_color='blue', name='Upper Band'))
+        self.chart.add_trace(
+            go.Scatter(x=self.data.index, y=self.data['Lower Band'], marker_color='red', name='Lower Band'))
 
 
 class DoubleRSI(TradingAlgorithm):
@@ -137,8 +138,10 @@ class DoubleRSI(TradingAlgorithm):
             self.data['Position'][i] = self.data['Signal'][i - 1]
 
     def update_chart(self):
-        self.chart.add_trace(go.Scatter(x=self.data.index, y=self.data['RSI Short'], marker_color='blue', name='RSI Short'))
-        self.chart.add_trace(go.Scatter(x=self.data.index, y=self.data['RSI Long'], marker_color='red', name='RSI Long'))
+        self.chart.add_trace(
+            go.Scatter(x=self.data.index, y=self.data['RSI Short'], marker_color='blue', name='RSI Short'))
+        self.chart.add_trace(
+            go.Scatter(x=self.data.index, y=self.data['RSI Long'], marker_color='red', name='RSI Long'))
 
 
 # TODO - review this
@@ -154,29 +157,25 @@ class Arbitrage(TradingAlgorithm):
         self.data.columns = ['SPY', 'ES']
         self.data['Spread'] = self.data['SPY'] - self.data['ES']
         self.data['Z-Score'] = (self.data['Spread'] - self.data['Spread'].mean()) / self.data['Spread'].std()
-        self.data['Signal'] = 0
         self.data['Position'] = 0
 
     def generate_signals(self):
         for i in range(1, len(self.data)):
             if self.data['Z-Score'][i] > self.entry_threshold:
-                self.data['Signal'][i] = -1
+                self.data['Position'][i] = -1
             elif self.data['Z-Score'][i] < -self.entry_threshold:
-                self.data['Signal'][i] = 1
+                self.data['Position'][i] = 1
             elif -self.exit_threshold < self.data['Z-Score'][i] < self.exit_threshold:
-                self.data['Signal'][i] = 0
+                self.data['Position'][i] = 0
             else:
-                self.data['Signal'][i] = self.data['Signal'][i - 1]
-
-            self.data['Position'][i] = self.data['Signal'][i]
+                self.data['Position'][i] = self.data['Position'][i - 1]
 
     def execute_trades(self):
         self.data['SPY Returns'] = self.data['SPY'].pct_change()
         self.data['ES Returns'] = self.data['ES'].pct_change()
-        self.data['Strategy Returns'] = self.data['Position'].shift(1) * \
-                                        (self.data['SPY Returns'] - self.data['ES Returns'])
-        cumulative_returns = (1 + self.data['Strategy Returns']).cumprod()
-        plt.plot(cumulative_returns)
+        self.data['Strategy Returns'] = self.data['Position'].shift(1) * (self.data['SPY Returns'] - self.data['ES Returns'])
+        self.cumulative_returns = (1 + self.data['Strategy Returns']).cumprod()
+        plt.plot(self.cumulative_returns)
         plt.xlabel('Time')
         plt.ylabel('Cumulative Returns')
         plt.show()

@@ -107,7 +107,7 @@ def get_financial_data(ticker, period, interval):
         ticker_data = yf.download(ticker, period=period, interval=interval)
 
         if memcache is not None:
-            memcache.set(key, ticker_data, 3*60*60)
+            memcache.set(key, ticker_data, 3 * 60 * 60)
 
     return ticker_data
 
@@ -174,7 +174,6 @@ def simulate():
         alg.run_algorithm()
 
         chart_name = ''.join(random.sample(string.ascii_letters + string.digits, 16))
-
         str_obj = StringIO()  # instantiate in-memory string object
         alg.chart.write_html(str_obj, 'html')  # saving to memory string object
         buf = str_obj.getvalue().encode()  # convert in-memory string to bytes
