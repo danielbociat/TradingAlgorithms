@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Tradding Algorithms
+  title: Trading Algorithms
   description:
   version: 1.0.11
 
@@ -12,6 +12,17 @@ tags:
 - name: Trading Algorithms
   description: Run simulations and benchmarks
 paths:
+  /:
+    get:
+      summary: Test
+      description: Test
+      operationId: test
+      requestBody:
+      responses:
+        "200":
+          description: Successful operation
+        "401":
+          description: Invalid username or password
   /auth:
     post:
       tags:
@@ -62,8 +73,8 @@ paths:
     post:
       tags:
         - Trading Algorithms
-      summary: Run a simultion with the desired configuration
-      description: Run a simultion with the desired configuration
+      summary: Run a simulation with the desired configuration
+      description: Run a simulation with the desired configuration
       operationId: simulate
       requestBody:
         description: Add the simulation settings

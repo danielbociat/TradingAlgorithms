@@ -141,10 +141,13 @@ def home():
 
         ticker_data = get_financial_data(ticker, period, interval)
 
-        alg = MeanReversion(ticker_data)
+        alg = DoubleRSI(ticker_data)
 
         alg.run_algorithm()
 
+        alg.save_chart_html()
+
+        print("SIMULATION STATS")
         print(alg.simulation_stats)
     except Exception as e:
         print(e)

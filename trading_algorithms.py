@@ -16,12 +16,18 @@ class TradingAlgorithm(ABC):
         self.benchmark_data = None
         self.cumulative_returns = list()
         self.simulation_stats = dict()
+        self.trades = {
+            "time": [],
+            "price": [],
+            "mode": []
+        }
 
     def run_algorithm(self):
         self.prepare_data()
         self.generate_signals()
         self.execute_trades()
         self.populate_simulation_stats()
+        self.add_entry_exit()
 
     @abstractmethod
     def prepare_data(self):
@@ -40,23 +46,34 @@ class TradingAlgorithm(ABC):
         current_sum = 1
         self.data['Position'] = self.data['Position'].shift(1)
 
-        for index, row in self.data.iterrows():
-            if row["Position"] * current_pos < 0:
-                # Execute trade
-                end_price = row["Close"]
-                current_sum = current_sum * ((end_price/start_price) ** current_pos)
+        try:
+            for index, row in self.data.iterrows():
+                if row["Position"] * current_pos < 0:
+                    # Execute trade
+                    end_price = row["Close"]
+                    current_sum = current_sum * ((end_price / start_price) ** current_pos)
 
-                # print(start_price, end_price, current_pos, current_sum)
+                    # print(start_price, end_price, current_pos, current_sum)
 
-                # Switch position
-                current_pos = row["Position"]
-                start_price = end_price
+                    # Switch position
+                    current_pos = row["Position"]
+                    start_price = end_price
 
-                self.cumulative_returns.append(current_sum)
+                    self.trades["price"].append(end_price)
+                    self.trades["time"].append(index)
+                    self.trades["mode"].append(current_pos)
+                    self.cumulative_returns.append(current_sum)
 
-            if current_pos == 0 and row["Position"] in [-1, 1]:
-                current_pos = row["Position"]
-                start_price = row["Close"]
+                if current_pos == 0 and row["Position"] in [-1, 1]:
+                    current_pos = row["Position"]
+                    start_price = row["Close"]
+
+                    self.trades["price"].append(start_price)
+                    self.trades["time"].append(index)
+                    self.trades["mode"].append(current_pos)
+
+        except Exception as e:
+            print(e)
 
     # TODO: Refactor to allow for a general situation, not only yearly; Remove completely??
     def compute_alpha(self):
@@ -89,7 +106,20 @@ class TradingAlgorithm(ABC):
                                             close=self.data['Close'],
                                             ))
 
-    # TODO : Update charts to allow for multiple subcharts (RSI), charts (Arbitrage) and display buying and selling points
+    def add_entry_exit(self):
+        entry_exit = pd.DataFrame(self.trades)
+
+        self.chart.add_trace(
+            go.Scatter(
+                x=entry_exit["time"],
+                y=entry_exit["price"],
+                mode="markers",
+                marker_color=["blue" if e > 0 else "orange" for e in entry_exit["mode"]]
+                # TODO : ADD Hover message for position type
+            ),
+        )
+
+    # TODO : charts (Arbitrage) and display buying and selling points
     def update_chart(self):
         pass
 
@@ -99,7 +129,8 @@ class TradingAlgorithm(ABC):
     # TODO : Review this, maybe add some more things => look TradingView
     def populate_simulation_stats(self):
         self.simulation_stats["Number of trades"] = len(self.cumulative_returns)
-        self.simulation_stats["Profitable trades"] = len([y for x, y in zip([1]+self.cumulative_returns, self.cumulative_returns) if y > x])
+        self.simulation_stats["Profitable trades"] = len(
+            [y for x, y in zip([1] + self.cumulative_returns, self.cumulative_returns) if y > x])
         self.simulation_stats["Holding Result"] = self.data.iloc[-1]["Close"] / self.data.iloc[0]["Close"] - 1
         self.simulation_stats["Strategy Result"] = self.cumulative_returns[-1] - 1
         self.simulation_stats["Max Profit"] = np.nanmax(self.cumulative_returns) - 1
