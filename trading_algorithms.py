@@ -82,7 +82,6 @@ class TradingAlgorithm(ABC):
         # plt.show()
 
     def init_chart(self):
-        self.chart = make_subplots(specs=[[{"secondary_y": True}]])
         self.chart.add_trace(go.Candlestick(x=self.data.index,
                                             open=self.data['Open'],
                                             high=self.data['High'],
@@ -112,7 +111,6 @@ class MeanReversion(TradingAlgorithm):
         super().__init__()
         self.data = data
         self.time_window = time_window
-        self.init_chart()
 
     def prepare_data(self):
         self.data['Moving Average'] = self.data['Close'].rolling(window=self.time_window).mean()
@@ -136,6 +134,11 @@ class MeanReversion(TradingAlgorithm):
             self.data['Position'][i] = self.data['Signal'][i]
 
     def update_chart(self):
+        self.chart = make_subplots(
+            specs=[[{"secondary_y": True}]],
+            shared_xaxes=True
+        )
+        self.init_chart()
         self.chart.add_trace(
             go.Scatter(x=self.data.index, y=self.data['Upper Band'], marker_color='blue', name='Upper Band'))
         self.chart.add_trace(
@@ -148,7 +151,6 @@ class DoubleRSI(TradingAlgorithm):
         self.data = data
         self.rsi_short_period = rsi_short_period
         self.rsi_long_period = rsi_long_period
-        self.init_chart()
 
     def prepare_data(self):
         self.data['RSI Short'] = ta.rsi(self.data['Close'], length=self.rsi_short_period, append=True)
@@ -170,10 +172,23 @@ class DoubleRSI(TradingAlgorithm):
             self.data['Position'][i] = self.data['Signal'][i - 1]
 
     def update_chart(self):
+        self.chart = make_subplots(rows=2, cols=1,
+                                   specs=[[{"secondary_y": True}], [{}]],
+                                   shared_xaxes=True,
+                                   vertical_spacing=0.05,
+                                   row_heights=[0.75, 0.25])
+        self.init_chart()
         self.chart.add_trace(
-            go.Scatter(x=self.data.index, y=self.data['RSI Short'], marker_color='blue', name='RSI Short'))
+            go.Scatter(x=self.data.index, y=self.data['RSI Short'], marker_color='blue', name='RSI Short'),
+            row=2, col=1)
         self.chart.add_trace(
-            go.Scatter(x=self.data.index, y=self.data['RSI Long'], marker_color='red', name='RSI Long'))
+            go.Scatter(x=self.data.index, y=self.data['RSI Long'], marker_color='red', name='RSI Long'),
+            row=2, col=1)
+        self.chart.update_layout(
+            xaxis_rangeslider_visible=False,
+            xaxis2_rangeslider_visible=True,
+            xaxis_type="date"
+        )
 
     def populate_simulation_stats(self):
         super().populate_simulation_stats()
