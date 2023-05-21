@@ -131,8 +131,29 @@ def auth():
     return jsonify(access_token=access_token)
 
 
+# TODO: Remove this
 @application.route('/', methods=['GET', 'POST'])
 def home():
+    try:
+        ticker = "AAPL"
+        period = "12mo"
+        interval = "1d"
+
+        ticker_data = get_financial_data(ticker, period, interval)
+
+        arbitrage_data = get_financial_data("IVV", period, interval)
+
+        alg = DoubleRSI(ticker_data)
+
+        alg.run_algorithm()
+
+        alg.save_chart_html()
+
+        print("SIMULATION STATS")
+        print(alg.simulation_stats)
+    except Exception as e:
+        print(e)
+
     return 'Hello'
 
 
@@ -147,7 +168,7 @@ def get_algorithms():
     ), 200
 
 
-# TODO - complete simulation endpoint
+# TODO - Add simulation stats to dynamo db
 @application.route('/simulate', methods=["POST"])
 @jwt_required()
 def simulate():
@@ -163,15 +184,31 @@ def simulate():
         algorithm = data.get("algorithm", "")
 
         if algorithm == "double_rsi":
-            alg = DoubleRSI(ticker_data)
+            rsi_short_period = data.get("rsi_short_period", 14)
+            rsi_long_period = data.get("rsi_long_period", 28)
+
+            alg = DoubleRSI(ticker_data, rsi_short_period, rsi_long_period)
+
         elif algorithm == "mean_reversion":
-            alg = MeanReversion(ticker_data)
+            time_window = data.get("time_window", 20)
+
+            alg = MeanReversion(ticker_data, time_window)
+
         elif algorithm == "arbitrage":
-            alg = Arbitrage(ticker_data, ticker_data)
+            entry_threshold = data.get("entry_threshold", 2)
+            exit_threshold = data.get("exit_threshold", 0)
+
+            ticker2 = data.get("ticker2", "SPY")
+            arbitrage_data = get_financial_data(ticker2, period, interval)
+
+            alg = Arbitrage(ticker_data, arbitrage_data, entry_threshold, exit_threshold)
+
         else:
             return "The algorithm selected does not exist", 400
 
         alg.run_algorithm()
+
+        print(alg.simulation_stats)
 
         chart_name = ''.join(random.sample(string.ascii_letters + string.digits, 16))
         str_obj = StringIO()  # instantiate in-memory string object
@@ -201,13 +238,14 @@ def simulate():
     return "Successful simulation\n See the trading chart at " + get_chart_link(chart_name), 200
 
 
+# TODO : Add endpoints for statistics => look into dynamodb queries
 @application.route('/statistics', methods=["GET"])
 @jwt_required()
 def statistics():
     return "", 404
 
 
-# TODO - complete benchmark endpoint
+# TODO - add benchmark endpoint
 @application.route('/benchmark', methods=["POST"])
 @jwt_required()
 def benchmark():
