@@ -123,7 +123,7 @@ def auth():
     username = request.json.get('username', None)
     password = request.json.get('password', None)
 
-    # TODO - Add auth logic
+    # TODO - Add auth logic / maybe aws user account
     if not (username == "test" and password == "test"):
         return jsonify({"msg": "Invalid username or password"}), 401
 
@@ -169,6 +169,7 @@ def get_algorithms():
 
 
 # TODO - Add simulation stats to dynamo db
+# TODO - Add custom messages for failing situations
 @application.route('/simulate', methods=["POST"])
 @jwt_required()
 def simulate():
@@ -200,7 +201,6 @@ def simulate():
 
             ticker2 = data.get("ticker2", "SPY")
             arbitrage_data = get_financial_data(ticker2, period, interval)
-
             alg = Arbitrage(ticker_data, arbitrage_data, entry_threshold, exit_threshold)
 
         else:
@@ -208,12 +208,10 @@ def simulate():
 
         alg.run_algorithm()
 
-        print(alg.simulation_stats)
-
         chart_name = ''.join(random.sample(string.ascii_letters + string.digits, 16))
-        str_obj = StringIO()  # instantiate in-memory string object
-        alg.chart.write_html(str_obj, 'html')  # saving to memory string object
-        buf = str_obj.getvalue().encode()  # convert in-memory string to bytes
+        str_obj = StringIO()
+        alg.chart.write_html(str_obj, 'html')
+        buf = str_obj.getvalue().encode()
         s3.put_object(
             Bucket=BUCKET_NAME,
             Key=f'{chart_name}',
@@ -221,6 +219,7 @@ def simulate():
             ContentType='text/html'
         )
 
+        # TODO : Add alg.statistics to the Item
         table.put_item(
             TableName="TradingAlgorithmsRuns",
             Item={

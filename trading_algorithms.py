@@ -155,7 +155,8 @@ class TradingAlgorithm(ABC):
 
         return sortino_ratio
 
-    # TODO : Review this, maybe add some more things => look TradingView
+    # TODO : Review this
+    # TODO : create small chart (Scatter look RSI) to showcase progress of starting with 100$, take cumulative_return * 100
     def populate_simulation_stats(self):
         self.simulation_stats["Number of trades"] = len(self.trades["time"])
         self.simulation_stats["Profitable trades"] = len(
@@ -167,6 +168,7 @@ class TradingAlgorithm(ABC):
         risk_free_rate_annual = 0.03
         risk_free_rate_daily = (1 + risk_free_rate_annual) ** (1 / 252) - 1
 
+        # TODO : add check if alg does not have daily step
         self.simulation_stats["Sharpe ratio"] = TradingAlgorithm.sharpe_ratio(self.cumulative_returns, risk_free_rate_daily)
         self.simulation_stats["Sortino ratio"] = TradingAlgorithm.sortino_ratio(self.cumulative_returns, risk_free_rate_daily)
 
@@ -264,7 +266,6 @@ class DoubleRSI(TradingAlgorithm):
         self.simulation_stats["Holding Result"] = self.data.iloc[-1]["Close"] / self.data.iloc[0]["Close"] - 1
 
 
-# TODO - review this, find a way to map tickers and futures
 class Arbitrage(TradingAlgorithm):
     def __init__(self, data, arbitrage_data, entry_threshold=2, exit_threshold=0):
         super().__init__()
