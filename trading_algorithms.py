@@ -28,6 +28,7 @@ class TradingAlgorithm(ABC):
         self.execute_trades()
         self.populate_simulation_stats()
         self.add_entry_exit()
+        self.remove_gaps_chart()
 
     @abstractmethod
     def prepare_data(self):
@@ -114,14 +115,23 @@ class TradingAlgorithm(ABC):
                 x=entry_exit["time"],
                 y=entry_exit["price"],
                 mode="markers",
-                marker_color=["blue" if e > 0 else "orange" for e in entry_exit["mode"]]
-                # TODO : ADD Hover message for position type
+                marker_color=["blue" if e > 0 else "orange" for e in entry_exit["mode"]],
+                hovertemplate=["LONG" if e > 0 else "SHORT" for e in entry_exit["mode"]],
+                name="Position type"
             ),
         )
 
-    # TODO : charts (Arbitrage) and display buying and selling points
+    # TODO : charts (Arbitrage)
     def update_chart(self):
         pass
+
+    def remove_gaps_chart(self):
+        self.chart.update_yaxes(fixedrange=False)
+        self.chart.update_xaxes(rangebreaks=[
+            dict(bounds=['sat', 'mon']),  # hide weekends
+            dict(bounds=[16, 9.5], pattern='hour'),  # for hourly chart, hide non-trading hours (24hr format)
+            dict(values=["2021-12-25", "2022-01-01"])  # hide Xmas and New Year
+        ])
 
     def save_chart_html(self):
         self.chart.write_html(r'.\graph.html')
@@ -131,7 +141,6 @@ class TradingAlgorithm(ABC):
         self.simulation_stats["Number of trades"] = len(self.cumulative_returns)
         self.simulation_stats["Profitable trades"] = len(
             [y for x, y in zip([1] + self.cumulative_returns, self.cumulative_returns) if y > x])
-        self.simulation_stats["Holding Result"] = self.data.iloc[-1]["Close"] / self.data.iloc[0]["Close"] - 1
         self.simulation_stats["Strategy Result"] = self.cumulative_returns[-1] - 1
         self.simulation_stats["Max Profit"] = np.nanmax(self.cumulative_returns) - 1
         self.simulation_stats["Max Loss"] = np.nanmin(self.cumulative_returns) - 1
@@ -174,6 +183,10 @@ class MeanReversion(TradingAlgorithm):
             go.Scatter(x=self.data.index, y=self.data['Upper Band'], marker_color='blue', name='Upper Band'))
         self.chart.add_trace(
             go.Scatter(x=self.data.index, y=self.data['Lower Band'], marker_color='red', name='Lower Band'))
+
+    def populate_simulation_stats(self):
+        super().populate_simulation_stats()
+        self.simulation_stats["Holding Result"] = self.data.iloc[-1]["Close"] / self.data.iloc[0]["Close"] - 1
 
 
 class DoubleRSI(TradingAlgorithm):
@@ -223,23 +236,26 @@ class DoubleRSI(TradingAlgorithm):
 
     def populate_simulation_stats(self):
         super().populate_simulation_stats()
+        self.simulation_stats["Holding Result"] = self.data.iloc[-1]["Close"] / self.data.iloc[0]["Close"] - 1
 
 
 # TODO - review this, find a way to map tickers and futures
 class Arbitrage(TradingAlgorithm):
-    def __init__(self, data, futures_data, entry_threshold=2, exit_threshold=0):
+    def __init__(self, data, arbitrage_data, entry_threshold=2, exit_threshold=0):
         super().__init__()
-        self.spy_data = data
-        self.es_data = futures_data
+        self.data1 = data
+        self.data2 = arbitrage_data
         self.entry_threshold = entry_threshold
         self.exit_threshold = exit_threshold
 
     def prepare_data(self):
-        self.data = pd.concat([self.spy_data['Close'], self.es_data['Close']], axis=1, join='inner')
-        self.data.columns = ['SPY', 'ES']
-        self.data['Spread'] = self.data['SPY'] - self.data['ES']
+        self.data = pd.concat([self.data1['Close'], self.data2['Close']], axis=1, join='inner')
+        self.data.columns = ['Data 1', 'Data 2']
+        self.data['Spread'] = self.data['Data 1'] - self.data['Data 2']
         self.data['Z-Score'] = (self.data['Spread'] - self.data['Spread'].mean()) / self.data['Spread'].std()
         self.data['Position'] = 0
+
+        self.update_chart()
 
     def generate_signals(self):
         for i in range(1, len(self.data)):
@@ -253,12 +269,73 @@ class Arbitrage(TradingAlgorithm):
                 self.data['Position'][i] = self.data['Position'][i - 1]
 
     def execute_trades(self):
-        self.data['SPY Returns'] = self.data['SPY'].pct_change()
-        self.data['ES Returns'] = self.data['ES'].pct_change()
-        self.data['Strategy Returns'] = self.data['Position'].shift(1) * (
-                self.data['SPY Returns'] - self.data['ES Returns'])
-        self.cumulative_returns = (1 + self.data['Strategy Returns']).cumprod()
-        plt.plot(self.cumulative_returns)
-        plt.xlabel('Time')
-        plt.ylabel('Cumulative Returns')
-        # plt.show()
+        current_sum = 1
+        self.trades["price2"] = list()
+        self.data['Position'] = self.data['Position'].shift(1)
+
+        try:
+            for index, row in self.data.iterrows():
+                if row["Position"] in [-1, 1]:
+                    # Execute trade
+                    current_sum = current_sum * ((row["Data 1"] / row["Data 2"]) ** row["Position"])
+
+                    self.trades["price"].append(row["Data 1"])
+                    self.trades["price2"].append(row["Data 2"])
+                    self.trades["time"].append(index)
+                    self.trades["mode"].append(row["Position"])
+                    self.cumulative_returns.append(current_sum)
+
+        except Exception as e:
+            print(e)
+
+    def populate_simulation_stats(self):
+        super().populate_simulation_stats()
+
+    def init_chart(self, data, row):
+        self.chart.add_trace(go.Candlestick(x=data.index,
+                                            open=data['Open'],
+                                            high=data['High'],
+                                            low=data['Low'],
+                                            close=data['Close'],
+                                            ), row=row, col=1)
+
+    def update_chart(self):
+        self.chart = make_subplots(rows=2, cols=1,
+                                   specs=[[{"secondary_y": True}], [{}]],
+                                   shared_xaxes=True,
+                                   vertical_spacing=0.05,
+                                   row_heights=[0.5, 0.5])
+        self.init_chart(self.data1, 1)
+        self.init_chart(self.data2, 2)
+        self.chart.update_layout(
+            xaxis_rangeslider_visible=False,
+            xaxis2_rangeslider_visible=True,
+            xaxis_type="date"
+        )
+
+    def add_entry_exit(self):
+        entry_exit = pd.DataFrame(self.trades)
+
+        self.chart.add_trace(
+            go.Scatter(
+                x=entry_exit["time"],
+                y=entry_exit["price"],
+                mode="markers",
+                marker_color=["blue" if e > 0 else "orange" for e in entry_exit["mode"]],
+                hovertemplate=["BUY" if e > 0 else "SELL" for e in entry_exit["mode"]],
+                name="Position type"
+            ),
+            row=1, col=1
+        )
+
+        self.chart.add_trace(
+            go.Scatter(
+                x=entry_exit["time"],
+                y=entry_exit["price2"],
+                mode="markers",
+                marker_color=["blue" if e < 0 else "orange" for e in entry_exit["mode"]],
+                hovertemplate=["BUY" if e < 0 else "SELL" for e in entry_exit["mode"]],
+                name="Position type"
+            ),
+            row=2, col=1
+        )
