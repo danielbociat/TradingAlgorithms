@@ -136,12 +136,14 @@ def auth():
 def home():
     try:
         ticker = "AAPL"
-        period = "12mo"
-        interval = "1d"
+        period = "7d"
+        interval = "5m"
 
         ticker_data = get_financial_data(ticker, period, interval)
 
-        alg = DoubleRSI(ticker_data)
+        arbitrage_data = get_financial_data("SPY", period, interval)
+
+        alg = MeanReversion(ticker_data)
 
         alg.run_algorithm()
 
@@ -182,11 +184,25 @@ def simulate():
         algorithm = data.get("algorithm", "")
 
         if algorithm == "double_rsi":
-            alg = DoubleRSI(ticker_data)
+            rsi_short_period = data.get("rsi_short_period", 14)
+            rsi_long_period = data.get("rsi_long_period", 28)
+
+            alg = DoubleRSI(ticker_data, rsi_short_period, rsi_long_period)
+
         elif algorithm == "mean_reversion":
-            alg = MeanReversion(ticker_data)
+            time_window = data.get("time_window", 20)
+
+            alg = MeanReversion(ticker_data, time_window)
+
         elif algorithm == "arbitrage":
-            alg = Arbitrage(ticker_data, ticker_data)
+            entry_threshold = data.get("entry_threshold", 2)
+            exit_threshold = data.get("exit_threshold", 0)
+
+            ticker2 = data.get("ticker2", "SPY")
+            arbitrage_data = get_financial_data(ticker2, period, interval)
+
+            alg = Arbitrage(ticker_data, arbitrage_data, entry_threshold, exit_threshold)
+
         else:
             return "The algorithm selected does not exist", 400
 
