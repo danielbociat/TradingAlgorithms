@@ -54,8 +54,6 @@ class TradingAlgorithm(ABC):
                     end_price = row["Close"]
                     current_sum = current_sum * ((end_price / start_price) ** current_pos)
 
-                    # print(start_price, end_price, current_pos, current_sum)
-
                     # Switch position
                     current_pos = row["Position"]
                     start_price = end_price
@@ -63,7 +61,6 @@ class TradingAlgorithm(ABC):
                     self.trades["price"].append(end_price)
                     self.trades["time"].append(index)
                     self.trades["mode"].append(current_pos)
-                    self.cumulative_returns.append(current_sum)
 
                 if current_pos == 0 and row["Position"] in [-1, 1]:
                     current_pos = row["Position"]
@@ -73,6 +70,7 @@ class TradingAlgorithm(ABC):
                     self.trades["time"].append(index)
                     self.trades["mode"].append(current_pos)
 
+                self.cumulative_returns.append(current_sum)
         except Exception as e:
             print(e)
 
@@ -121,7 +119,6 @@ class TradingAlgorithm(ABC):
             ),
         )
 
-    # TODO : charts (Arbitrage)
     def update_chart(self):
         pass
 
@@ -129,21 +126,49 @@ class TradingAlgorithm(ABC):
         self.chart.update_yaxes(fixedrange=False)
         self.chart.update_xaxes(rangebreaks=[
             dict(bounds=['sat', 'mon']),  # hide weekends
-            dict(bounds=[16, 9.5], pattern='hour'),  # for hourly chart, hide non-trading hours (24hr format)
             dict(values=["2021-12-25", "2022-01-01"])  # hide Xmas and New Year
         ])
 
     def save_chart_html(self):
         self.chart.write_html(r'.\graph.html')
 
+    @staticmethod
+    def sharpe_ratio(cumulative_return, daily_risk_free_rate):
+        cumulative_return_df = pd.Series(cumulative_return)
+        returns = cumulative_return_df.pct_change().dropna()
+        excess_return = returns - daily_risk_free_rate
+
+        sharpe_ratio = excess_return.mean() / excess_return.std()
+
+        return sharpe_ratio
+
+    @staticmethod
+    def sortino_ratio(cumulative_return, daily_risk_free_rate):
+        cumulative_return_df = pd.Series(cumulative_return)
+        returns = cumulative_return_df.pct_change().dropna()
+        excess_return = returns - daily_risk_free_rate
+
+        print(daily_risk_free_rate)
+
+        downside_deviation = excess_return[excess_return < 0].std()
+        sortino_ratio = excess_return.mean() / downside_deviation
+
+        return sortino_ratio
+
     # TODO : Review this, maybe add some more things => look TradingView
     def populate_simulation_stats(self):
-        self.simulation_stats["Number of trades"] = len(self.cumulative_returns)
+        self.simulation_stats["Number of trades"] = len(self.trades["time"])
         self.simulation_stats["Profitable trades"] = len(
-            [y for x, y in zip([1] + self.cumulative_returns, self.cumulative_returns) if y > x])
+            [y for x, y in zip([1] + self.cumulative_returns, self.cumulative_returns) if y < x])
         self.simulation_stats["Strategy Result"] = self.cumulative_returns[-1] - 1
         self.simulation_stats["Max Profit"] = np.nanmax(self.cumulative_returns) - 1
         self.simulation_stats["Max Loss"] = np.nanmin(self.cumulative_returns) - 1
+
+        risk_free_rate_annual = 0.03
+        risk_free_rate_daily = (1 + risk_free_rate_annual) ** (1 / 252) - 1
+
+        self.simulation_stats["Sharpe ratio"] = TradingAlgorithm.sharpe_ratio(self.cumulative_returns, risk_free_rate_daily)
+        self.simulation_stats["Sortino ratio"] = TradingAlgorithm.sortino_ratio(self.cumulative_returns, risk_free_rate_daily)
 
 
 class MeanReversion(TradingAlgorithm):
@@ -178,7 +203,7 @@ class MeanReversion(TradingAlgorithm):
             specs=[[{"secondary_y": True}]],
             shared_xaxes=True
         )
-        self.init_chart()
+        super().init_chart()
         self.chart.add_trace(
             go.Scatter(x=self.data.index, y=self.data['Upper Band'], marker_color='blue', name='Upper Band'))
         self.chart.add_trace(
@@ -277,7 +302,7 @@ class Arbitrage(TradingAlgorithm):
             for index, row in self.data.iterrows():
                 if row["Position"] in [-1, 1]:
                     # Execute trade
-                    current_sum = current_sum * ((row["Data 1"] / row["Data 2"]) ** row["Position"])
+                    current_sum = current_sum * ((row["Data 2"] / row["Data 1"]) ** row["Position"])
 
                     self.trades["price"].append(row["Data 1"])
                     self.trades["price2"].append(row["Data 2"])
@@ -339,3 +364,9 @@ class Arbitrage(TradingAlgorithm):
             ),
             row=2, col=1
         )
+
+    def remove_gaps_chart(self):
+        super().remove_gaps_chart()
+        self.chart.update_xaxes(rangebreaks=[
+            dict(bounds=[16, 9.5], pattern='hour'),
+        ])

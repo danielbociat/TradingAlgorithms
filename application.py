@@ -136,14 +136,14 @@ def auth():
 def home():
     try:
         ticker = "AAPL"
-        period = "7d"
-        interval = "5m"
+        period = "12mo"
+        interval = "1d"
 
         ticker_data = get_financial_data(ticker, period, interval)
 
-        arbitrage_data = get_financial_data("SPY", period, interval)
+        arbitrage_data = get_financial_data("IVV", period, interval)
 
-        alg = MeanReversion(ticker_data)
+        alg = DoubleRSI(ticker_data)
 
         alg.run_algorithm()
 
