@@ -62,11 +62,9 @@ def get_chart_link(chart_name):
 
 
 def get_secret(key):
-    secret_name = "jwt_secret_key"
-
     try:
         get_secret_value_response = secrets_manager.get_secret_value(
-            SecretId=secret_name
+            SecretId=key
         )
     except ClientError as e:
         raise e
