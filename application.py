@@ -1,3 +1,6 @@
+import aws_connections
+from trading_algorithms import *
+
 import string
 from io import StringIO
 import yfinance as yf
@@ -9,16 +12,12 @@ import random
 import datetime
 from flask_swagger_ui import get_swaggerui_blueprint
 import configparser
-from trading_algorithms import *
 import pandas as pd
 from datetime import timedelta
-import boto3
 from boto3.dynamodb.conditions import Key, Attr
 from botocore.exceptions import ClientError
 
 import json
-from elasticache_pyclient import MemcacheClient
-
 pd.options.mode.chained_assignment = None  # default='warn'
 
 '''
@@ -28,56 +27,16 @@ api_dict = dict(config.items('historical_data_api_key'))
 '''
 
 
-def connect_to_memcache(url):
-    connection = None
-    try:
-        connection = MemcacheClient(url)
-    except Exception:
-        pass
-    return connection
-
-
-region_name = "eu-central-1"
-session = boto3.session.Session()
-
-secrets_manager = session.client(
-    service_name='secretsmanager',
-    region_name=region_name
-)
-
-dynamodb = boto3.resource(
-    service_name='dynamodb',
-    region_name=region_name
-)
-table = dynamodb.Table("TradingAlgorithmsRuns")
-
-memcache = connect_to_memcache('tradingalgortihmsmemcache.lwtvyq.0001.euc1.cache.amazonaws.com:11211')
-
-s3 = boto3.client('s3')
-BUCKET_NAME = "tradingalgorithmscharts"
-
-
-def get_chart_link(chart_name):
-    return "https://" + BUCKET_NAME + ".s3.eu-central-1.amazonaws.com/" + chart_name
-
-
-def get_secret(key):
-    try:
-        get_secret_value_response = secrets_manager.get_secret_value(
-            SecretId=key
-        )
-    except ClientError as e:
-        raise e
-
-    # Decrypts secret using the associated KMS key.
-    secret = get_secret_value_response['SecretString']
-    secrets = json.loads(secret)
-    return secrets[key]
+dynamodb = aws_connections.get_dynamodb_connection()
+table = aws_connections.get_dynamodb_table(dynamodb, "TradingAlgorithmsRuns")
+memcache = aws_connections.get_dynamodb_connection('tradingalgortihmsmemcache.lwtvyq.0001.euc1.cache.amazonaws.com:11211')
+secrets_manager = aws_connections.get_secrets_manager_connection()
+s3 = aws_connections.get_s3_connection()
 
 
 # Application
 application = Flask(__name__)
-application.config["JWT_SECRET_KEY"] = get_secret("jwt_secret_key")
+application.config["JWT_SECRET_KEY"] = aws_connections.get_secret_from_secrets_manager(secrets_manager, "jwt_secret_key")
 application.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
 jwt = JWTManager(application)
 
@@ -210,12 +169,7 @@ def simulate():
         str_obj = StringIO()
         alg.chart.write_html(str_obj, 'html')
         buf = str_obj.getvalue().encode()
-        s3.put_object(
-            Bucket=BUCKET_NAME,
-            Key=f'{chart_name}',
-            Body=buf,
-            ContentType='text/html'
-        )
+        aws_connections.put_s3_item(s3, chart_name, buf, 'text/html')
 
         # TODO : Add alg.statistics to the Item
         table.put_item(
@@ -232,7 +186,7 @@ def simulate():
     except Exception:
         return "Simulation failed", 400
 
-    return "Successful simulation\n See the trading chart at " + get_chart_link(chart_name), 200
+    return "Successful simulation\n See the trading chart at " + aws_connections.get_s3_bucket_item_link(chart_name), 200
 
 
 # TODO : Add endpoints for statistics => look into dynamodb queries
