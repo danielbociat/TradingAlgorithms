@@ -1,15 +1,24 @@
+import configparser
+import json
+
 import boto3
 from botocore.exceptions import ClientError
 from elasticache_pyclient import MemcacheClient
-import json
+
+config = configparser.RawConfigParser()
+config.read('config.ini')
+aws_connections_config = dict(config.items('aws_connections'))
+
 
 session = boto3.session.Session()
 
-REGION_NAME = "eu-central-1"
-BUCKET_NAME = "tradingalgorithmscharts"
+REGION_NAME = aws_connections_config.get("region_name")
+BUCKET_NAME = aws_connections_config.get("bucket_name")
+DYNAMODB_RUNS_TABLE_NAME = aws_connections_config.get("dynamodb_runs_table_name")
+MEMCACHED_URL = aws_connections_config.get("memcached_url")
 
 
-def get_memcache_connection(url):
+def get_memcached_connection(url):
     connection = None
     try:
         connection = MemcacheClient(url)
@@ -68,4 +77,4 @@ def put_s3_item(s3, name, item, content_type):
 
 
 def get_s3_bucket_item_link(name):
-    return "https://" + BUCKET_NAME + ".s3.eu-central-1.amazonaws.com/" + name
+    return "https://" + BUCKET_NAME + ".s3." + REGION_NAME + ".amazonaws.com/" + name

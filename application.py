@@ -11,25 +11,17 @@ from flask_jwt_extended import (
 import random
 import datetime
 from flask_swagger_ui import get_swaggerui_blueprint
-import configparser
 import pandas as pd
 from datetime import timedelta
 from boto3.dynamodb.conditions import Key, Attr
-from botocore.exceptions import ClientError
-
 import json
-pd.options.mode.chained_assignment = None  # default='warn'
 
-'''
-config = configparser.RawConfigParser()
-config.read('config.ini')
-api_dict = dict(config.items('historical_data_api_key'))
-'''
+pd.options.mode.chained_assignment = None  # default='warn'
 
 
 dynamodb = aws_connections.get_dynamodb_connection()
-table = aws_connections.get_dynamodb_table(dynamodb, "TradingAlgorithmsRuns")
-memcache = aws_connections.get_dynamodb_connection('tradingalgortihmsmemcache.lwtvyq.0001.euc1.cache.amazonaws.com:11211')
+table = aws_connections.get_dynamodb_table(dynamodb, aws_connections.DYNAMODB_RUNS_TABLE_NAME)
+memcache = aws_connections.get_memcached_connection(aws_connections.MEMCACHED_URL)
 secrets_manager = aws_connections.get_secrets_manager_connection()
 s3 = aws_connections.get_s3_connection()
 
@@ -173,7 +165,7 @@ def simulate():
 
         # TODO : Add alg.statistics to the Item
         table.put_item(
-            TableName="TradingAlgorithmsRuns",
+            TableName=aws_connections.DYNAMODB_RUNS_TABLE_NAME,
             Item={
                 'timestamp_period': "".join([datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), '_', period]),
                 'algorithm': algorithm,
