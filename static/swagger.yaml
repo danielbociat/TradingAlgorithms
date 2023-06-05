@@ -145,6 +145,8 @@ components:
             algorithm: 
               type: string
               enum: ["arbitrage"]
+            ticker2:
+              type: string
             entry_threshold:
               type: integer
               default: 2
