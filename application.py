@@ -153,7 +153,7 @@ def simulate():
             alg = Arbitrage(ticker_data, arbitrage_data, entry_threshold, exit_threshold)
 
         else:
-            return "The algorithm selected does not exist", 400
+            return "The selected algorithm does not exist", 400
 
         alg.run_algorithm()
 
