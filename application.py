@@ -178,6 +178,8 @@ def simulate():
     except Exception:
         return "Simulation failed", 400
 
+    print(alg.simulation_stats)
+
     return "Successful simulation\n See the trading chart at " + aws_connections.get_s3_bucket_item_link(chart_name), 200
 
 

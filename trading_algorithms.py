@@ -45,7 +45,6 @@ class TradingAlgorithm(ABC):
         current_pos = 0
         start_price = 0
         current_sum = 1
-        self.data['Position'] = self.data['Position'].shift(1)
 
         try:
             for index, row in self.data.iterrows():
@@ -240,7 +239,7 @@ class DoubleRSI(TradingAlgorithm):
             else:
                 self.data['Signal'][i] = 0
 
-            self.data['Position'][i] = self.data['Signal'][i - 1]
+            self.data['Position'][i] = self.data['Signal'][i]
 
     def update_chart(self):
         self.chart = make_subplots(rows=2, cols=1,
