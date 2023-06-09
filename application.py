@@ -41,7 +41,6 @@ SWAGGER_BLUEPRINT = get_swaggerui_blueprint(
         'app_name': "Trading Algorithms"
     }
 )
-
 application.register_blueprint(SWAGGER_BLUEPRINT, url_prefix=SWAGGER_URL)
 
 

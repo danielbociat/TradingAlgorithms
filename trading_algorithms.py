@@ -125,7 +125,6 @@ class TradingAlgorithm(ABC):
         self.chart.update_yaxes(fixedrange=False)
         self.chart.update_xaxes(rangebreaks=[
             dict(bounds=['sat', 'mon']),  # hide weekends
-            dict(values=["2021-12-25", "2022-01-01"])  # hide Xmas and New Year
         ])
 
     def save_chart_html(self):
