@@ -41,7 +41,6 @@ SWAGGER_BLUEPRINT = get_swaggerui_blueprint(
         'app_name': "Trading Algorithms"
     }
 )
-
 application.register_blueprint(SWAGGER_BLUEPRINT, url_prefix=SWAGGER_URL)
 
 
@@ -153,7 +152,7 @@ def simulate():
             alg = Arbitrage(ticker_data, arbitrage_data, entry_threshold, exit_threshold)
 
         else:
-            return "The algorithm selected does not exist", 400
+            return "The selected algorithm does not exist", 400
 
         alg.run_algorithm()
 
@@ -177,6 +176,8 @@ def simulate():
 
     except Exception:
         return "Simulation failed", 400
+
+    print(alg.simulation_stats)
 
     return "Successful simulation\n See the trading chart at " + aws_connections.get_s3_bucket_item_link(chart_name), 200
 

@@ -11,6 +11,7 @@ tags:
   description: Get possible configurations
 - name: Trading Algorithms
   description: Run simulations and benchmarks
+
 paths:
   /:
     get:
@@ -81,31 +82,10 @@ paths:
         content:
           application/json:
             schema:
-              required:
-                - algorithm
-              optional:
-                - ticker
-                - period
-                - interval
-              type: object
-              properties:
-                algorithm:
-                  type: string
-                  example: mean_reversion
-                ticker:
-                  type: string
-                  example: AAPL
-                period:
-                  type: string
-                  example: 12mo
-                interval:
-                  type: string
-                  example: 1d
-              example:
-                algorithm: mean_reversion
-                ticker: AAPL
-                period: 12mo
-                interval: 1d
+              oneOf:
+                - $ref: '#/components/schemas/Mean_Reversion'
+                - $ref: '#/components/schemas/Double_RSI'
+                - $ref: '#/components/schemas/Arbitrage'
         required: true
       responses:
         "200":
@@ -115,6 +95,65 @@ paths:
       security:
         - bearerAuth: [ ]
 components:
+  schemas:
+    Trading_Algorithm:
+      type: object
+      required:
+        - ticker
+        - period
+        - interval
+      properties:
+        ticker: 
+          type: string
+        period:
+          type: string
+        interval: 
+          type: string
+
+    Mean_Reversion:
+      allOf:
+       - $ref: '#/components/schemas/Trading_Algorithm'
+       - type: object
+         properties:
+          algorithm: 
+            type: string
+            enum: ["mean_reversion"]
+          time_window:
+            type: integer
+            default: 20
+
+    Double_RSI:
+      allOf:
+       - $ref: '#/components/schemas/Trading_Algorithm'
+       - type: object
+         properties:
+            algorithm: 
+              type: string
+              enum: ["double_rsi"]
+            rsi_short_period:
+              type: integer
+              default: 14
+            rsi_long_period:
+              type: integer
+              default: 28
+
+    Arbitrage:
+      allOf:
+        - $ref: '#/components/schemas/Trading_Algorithm'
+        - type: object
+          properties:
+            algorithm: 
+              type: string
+              enum: ["arbitrage"]
+            ticker2:
+              type: string
+            entry_threshold:
+              type: integer
+              default: 2
+            exit_threshold:
+              type: integer
+              default: 0
+
   securitySchemes:
     bearerAuth:
       type: http

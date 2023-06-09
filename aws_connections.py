@@ -5,6 +5,8 @@ import boto3
 from botocore.exceptions import ClientError
 from elasticache_pyclient import MemcacheClient
 
+max_tries = 3
+
 config = configparser.RawConfigParser()
 config.read('config.ini')
 aws_connections_config = dict(config.items('aws_connections'))
@@ -20,19 +22,33 @@ MEMCACHED_URL = aws_connections_config.get("memcached_url")
 
 def get_memcached_connection(url):
     connection = None
-    try:
-        connection = MemcacheClient(url)
-    except Exception:
-        pass
+
+    for retry in range(max_tries):
+        try:
+            connection = MemcacheClient(url)
+        except Exception as e:
+            if retry < max_tries - 1:
+                continue
+            else:
+                pass
+
     return connection
 
 
 def get_secrets_manager_connection():
-    secrets_manager = session.client(
-        service_name='secretsmanager',
-        region_name=REGION_NAME
-    )
-    return secrets_manager
+    for retry in range(max_tries):
+        try:
+            secrets_manager = session.client(
+                service_name='secretsmanager',
+                region_name=REGION_NAME
+            )
+            return secrets_manager
+
+        except Exception as e:
+            if retry < max_tries-1:
+                continue
+            else:
+                raise e
 
 
 def get_secret_from_secrets_manager(secrets_manager, key):
@@ -50,21 +66,42 @@ def get_secret_from_secrets_manager(secrets_manager, key):
 
 
 def get_dynamodb_connection():
-    dynamodb = boto3.resource(
-        service_name='dynamodb',
-        region_name=REGION_NAME
-    )
-    return dynamodb
+    for retry in range(max_tries):
+        try:
+            dynamodb = boto3.resource(
+                service_name='dynamodb',
+                region_name=REGION_NAME
+            )
+            return dynamodb
+        except Exception as e:
+            if retry < max_tries-1:
+                continue
+            else:
+                raise e
 
 
 def get_dynamodb_table(dynamodb, table_name):
-    table = dynamodb.Table(table_name)
-    return table
+    for retry in range(max_tries):
+        try:
+            table = dynamodb.Table(table_name)
+            return table
+        except Exception as e:
+            if retry < max_tries-1:
+                continue
+            else:
+                raise e
 
 
 def get_s3_connection():
-    s3 = boto3.client('s3')
-    return s3
+    for retry in range(max_tries):
+        try:
+            s3 = boto3.client('s3')
+            return s3
+        except Exception as e:
+            if retry < max_tries-1:
+                continue
+            else:
+                raise e
 
 
 def put_s3_item(s3, name, item, content_type):
