@@ -5,7 +5,7 @@ import boto3
 from botocore.exceptions import ClientError
 from elasticache_pyclient import MemcacheClient
 
-max_tries = 3
+max_retries = 3
 
 config = configparser.RawConfigParser()
 config.read('config.ini')
@@ -23,11 +23,11 @@ MEMCACHED_URL = aws_connections_config.get("memcached_url")
 def get_memcached_connection(url):
     connection = None
 
-    for retry in range(max_tries):
+    for retry in range(max_retries):
         try:
             connection = MemcacheClient(url)
         except Exception as e:
-            if retry < max_tries - 1:
+            if retry < max_retries - 1:
                 continue
             else:
                 pass
@@ -36,7 +36,7 @@ def get_memcached_connection(url):
 
 
 def get_secrets_manager_connection():
-    for retry in range(max_tries):
+    for retry in range(max_retries):
         try:
             secrets_manager = session.client(
                 service_name='secretsmanager',
@@ -45,7 +45,7 @@ def get_secrets_manager_connection():
             return secrets_manager
 
         except Exception as e:
-            if retry < max_tries-1:
+            if retry < max_retries-1:
                 continue
             else:
                 raise e
@@ -66,7 +66,7 @@ def get_secret_from_secrets_manager(secrets_manager, key):
 
 
 def get_dynamodb_connection():
-    for retry in range(max_tries):
+    for retry in range(max_retries):
         try:
             dynamodb = boto3.resource(
                 service_name='dynamodb',
@@ -74,31 +74,31 @@ def get_dynamodb_connection():
             )
             return dynamodb
         except Exception as e:
-            if retry < max_tries-1:
+            if retry < max_retries-1:
                 continue
             else:
                 raise e
 
 
 def get_dynamodb_table(dynamodb, table_name):
-    for retry in range(max_tries):
+    for retry in range(max_retries):
         try:
             table = dynamodb.Table(table_name)
             return table
         except Exception as e:
-            if retry < max_tries-1:
+            if retry < max_retries-1:
                 continue
             else:
                 raise e
 
 
 def get_s3_connection():
-    for retry in range(max_tries):
+    for retry in range(max_retries):
         try:
             s3 = boto3.client('s3')
             return s3
         except Exception as e:
-            if retry < max_tries-1:
+            if retry < max_retries-1:
                 continue
             else:
                 raise e
