@@ -10,7 +10,10 @@ import numpy as np
 
 # TODO : Remove/Clear financial data from the class, add it as parameter
 class TradingAlgorithm(ABC):
-    def __init__(self):
+    def __init__(self, period, interval):
+        self.period = period
+        self.interval = interval
+
         self.data = None
         self.chart = None
         self.benchmark_data = None
@@ -172,8 +175,8 @@ class TradingAlgorithm(ABC):
 
 
 class MeanReversion(TradingAlgorithm):
-    def __init__(self, data, time_window=20):
-        super().__init__()
+    def __init__(self, data, period, interval, time_window=20):
+        super().__init__(period, interval)
         self.data = data
         self.time_window = time_window
 
@@ -215,8 +218,8 @@ class MeanReversion(TradingAlgorithm):
 
 
 class DoubleRSI(TradingAlgorithm):
-    def __init__(self, data, rsi_short_period=14, rsi_long_period=28):
-        super().__init__()
+    def __init__(self, data, period, interval, rsi_short_period=14, rsi_long_period=28):
+        super().__init__(period, interval)
         self.data = data
         self.rsi_short_period = rsi_short_period
         self.rsi_long_period = rsi_long_period
@@ -265,8 +268,8 @@ class DoubleRSI(TradingAlgorithm):
 
 
 class Arbitrage(TradingAlgorithm):
-    def __init__(self, data, arbitrage_data, entry_threshold=2, exit_threshold=0):
-        super().__init__()
+    def __init__(self,  data, period, interval, arbitrage_data, entry_threshold=2, exit_threshold=0):
+        super().__init__(period, interval)
         self.data1 = data
         self.data2 = arbitrage_data
         self.entry_threshold = entry_threshold

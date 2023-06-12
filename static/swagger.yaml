@@ -105,10 +105,13 @@ components:
       properties:
         ticker: 
           type: string
+          example: AAPL
         period:
           type: string
+          example: 12mo
         interval: 
           type: string
+          example: 1d
 
     Mean_Reversion:
       allOf:
