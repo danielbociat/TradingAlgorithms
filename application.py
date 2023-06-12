@@ -99,7 +99,7 @@ def get_algorithms():
 # TODO - Add simulation stats to dynamo db
 # TODO - Add custom messages for failing situations
 @application.route('/simulate', methods=["POST"])
-#@jwt_required()
+@jwt_required()
 def simulate():
     try:
         data = dict(request.json)
