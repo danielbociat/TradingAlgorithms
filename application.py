@@ -71,8 +71,10 @@ def auth():
     username = request.json.get('username', None)
     password = request.json.get('password', None)
 
+    credentials = aws_connections.get_secret_from_secrets_manager(secrets_manager, "credentials")
+
     # TODO - Add auth logic / maybe aws user account
-    if not (username == "test" and password == "test"):
+    if not (username == credentials["username"] and password == credentials["password"]):
         return jsonify({"msg": "Invalid username or password"}), 401
 
     access_token = create_access_token(identity=username)
@@ -99,7 +101,7 @@ def get_algorithms():
 # TODO - Add simulation stats to dynamo db
 # TODO - Add custom messages for failing situations
 @application.route('/simulate', methods=["POST"])
-@jwt_required()
+#@jwt_required()
 def simulate():
     try:
         data = dict(request.json)

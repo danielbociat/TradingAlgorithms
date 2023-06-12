@@ -62,7 +62,9 @@ def get_secret_from_secrets_manager(secrets_manager, key):
     # Decrypts secret using the associated KMS key.
     secret = get_secret_value_response['SecretString']
     secrets = json.loads(secret)
+
     return secrets[key]
+
 
 
 def get_dynamodb_connection():
