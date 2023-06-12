@@ -4,7 +4,7 @@ from trading_algorithms import *
 import string
 from io import StringIO
 import yfinance as yf
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, redirect, url_for
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token
 )
@@ -55,7 +55,7 @@ def get_financial_data(ticker, period, interval):
         ticker_data = yf.download(ticker, period=period, interval=interval)
 
         if memcache is not None:
-            memcache.set(key, ticker_data, 3 * 60 * 60)
+            memcache.set(key, ticker_data, 12 * 60 * 60)
 
     return ticker_data
 
@@ -82,27 +82,7 @@ def auth():
 # TODO: Remove this
 @application.route('/', methods=['GET', 'POST'])
 def home():
-    try:
-        ticker = "AAPL"
-        period = "12mo"
-        interval = "1d"
-
-        ticker_data = get_financial_data(ticker, period, interval)
-
-        arbitrage_data = get_financial_data("IVV", period, interval)
-
-        alg = DoubleRSI(ticker_data)
-
-        alg.run_algorithm()
-
-        alg.save_chart_html()
-
-        print("SIMULATION STATS")
-        print(alg.simulation_stats)
-    except Exception as e:
-        print(e)
-
-    return 'Hello'
+    return redirect('/swagger')
 
 
 # TODO - add all the configuration details: algorithms, tickers, periods and intervals
@@ -119,7 +99,7 @@ def get_algorithms():
 # TODO - Add simulation stats to dynamo db
 # TODO - Add custom messages for failing situations
 @application.route('/simulate', methods=["POST"])
-@jwt_required()
+#@jwt_required()
 def simulate():
     try:
         data = dict(request.json)
@@ -136,12 +116,12 @@ def simulate():
             rsi_short_period = data.get("rsi_short_period", 14)
             rsi_long_period = data.get("rsi_long_period", 28)
 
-            alg = DoubleRSI(ticker_data, rsi_short_period, rsi_long_period)
+            alg = DoubleRSI(ticker_data, period, interval, rsi_short_period, rsi_long_period)
 
         elif algorithm == "mean_reversion":
             time_window = data.get("time_window", 20)
 
-            alg = MeanReversion(ticker_data, time_window)
+            alg = MeanReversion(ticker_data, period, interval, time_window)
 
         elif algorithm == "arbitrage":
             entry_threshold = data.get("entry_threshold", 2)
@@ -149,7 +129,7 @@ def simulate():
 
             ticker2 = data.get("ticker2", "SPY")
             arbitrage_data = get_financial_data(ticker2, period, interval)
-            alg = Arbitrage(ticker_data, arbitrage_data, entry_threshold, exit_threshold)
+            alg = Arbitrage(ticker_data, period, interval, arbitrage_data, entry_threshold, exit_threshold)
 
         else:
             return "The selected algorithm does not exist", 400
@@ -173,10 +153,11 @@ def simulate():
                 'interval': interval,
             }
         )
-
-    except Exception:
+    except Exception as e:
+        print(e)
         return "Simulation failed", 400
 
+    print("SIMULATION STATS")
     print(alg.simulation_stats)
 
     return "Successful simulation\n See the trading chart at " + aws_connections.get_s3_bucket_item_link(chart_name), 200
