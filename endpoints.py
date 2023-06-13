@@ -235,6 +235,9 @@ def statistics(algorithm):
 
     stats["Average Strategy Return"] = get_average("Strategy Result", items)
 
+    stats["Total Runs"] = len(items)
+    stats["Profitable Runs"] = len([item["Strategy Result"] for item in items if "Strategy Result" in item and item["Strategy Result"] > 0])
+
     return jsonify(stats), 200
 
 # endregion
