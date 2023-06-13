@@ -11,6 +11,8 @@ tags:
   description: Get possible configurations
 - name: Trading Algorithms
   description: Run simulations and benchmarks
+- name: Statistics
+  description: Retrieve statistics from runs
 
 paths:
   /:
@@ -90,10 +92,32 @@ paths:
       responses:
         "200":
           description: Successful operation
-        "401":
-          description: Invalid username or password
+        "400":
+          description: Bad Request
       security:
-        - bearerAuth: [ ]
+        - bearerAuth: []
+  /stats/algorithm/{algorithm}:
+    get:
+      tags:
+        - Statistics
+      summary: Get statistics for a ceratin algorithm
+      description: Get statistics for a ceratin algorithm
+      operationId: stats_algorithm
+      parameters:
+        - in: path
+          name: algorithm
+          schema:
+            type: string
+          required: true
+          description: Name of the algorithm
+      responses:
+        "200":
+          description: Successful operation
+        "400":
+          description: No runs available for algorithm {algorithm}
+      security:
+        - bearerAuth: []
+    
 components:
   schemas:
     Trading_Algorithm:
@@ -162,4 +186,3 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-
