@@ -2,9 +2,11 @@ import datetime
 import json
 import random
 import string
-from io import StringIO
+from collections import defaultdict
 from decimal import Decimal
-
+from io import StringIO
+import statistics
+from boto3.dynamodb.conditions import Key
 from flask import jsonify, request, redirect, Blueprint
 from flask_jwt_extended import (
     create_access_token, jwt_required
@@ -137,12 +139,13 @@ def simulate():
         aws_connections.put_s3_item(aws_connections.S3, chart_name, buf, 'text/html')
 
         dynamodb_item = {
-                'timestamp_period': "".join([datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), '_', period]),
-                'algorithm': algorithm,
-                'ticker': ticker,
-                'period': period,
-                'interval': interval,
-            } | alg.simulation_stats | algorithm_parameters
+                            'timestamp_period': "".join(
+                                [datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), '_', period]),
+                            'algorithm': algorithm,
+                            'ticker': ticker,
+                            'period': period,
+                            'interval': interval,
+                        } | alg.simulation_stats | algorithm_parameters
 
         dynamodb_item = json.loads(json.dumps(dynamodb_item), parse_float=Decimal)
 
@@ -167,13 +170,71 @@ def simulate():
 
 # region statistics
 
-STATS = Blueprint('stats', __name__)
+def get_most_used(key, items):
+    freq = defaultdict(lambda: 0)
+
+    for item in items:
+        if key in item:
+            freq[item[key]] += 1
+
+    return max(freq, key=freq.get)
+
+
+def get_average(key, items):
+    getAllElementsWithSameKey = lambda k: [d for d in items if k in d]
+    filtered = [d[key] for d in getAllElementsWithSameKey(key)]
+
+    if len(filtered) == 0:
+        return 0
+
+    return sum(filtered) / len(filtered)
+
+
+def get_most_popular_config(algorithm, items):
+    most_popular_config = dict()
+
+    if algorithm == "mean_reversion":
+        most_popular_config["time_window"] = get_most_used("time_window", items)
+    elif algorithm == "double_rsi":
+        most_popular_config["rsi_long_period"] = get_most_used("rsi_long_period", items)
+        most_popular_config["rsi_short_period"] = get_most_used("rsi_short_period", items)
+    elif algorithm == "arbitrage":
+        most_popular_config["entry_threshold"] = get_most_used("entry_threshold", items)
+        most_popular_config["exit_threshold"] = get_most_used("exit_threshold", items)
+        most_popular_config["ticker2"] = get_most_used("ticker2", items)
+
+    return most_popular_config
+
+
+STATS = Blueprint('stats', __name__, url_prefix='/stats')
 
 
 # TODO : Add endpoints for statistics => look into dynamodb queries
-@STATS.route('/statistics', methods=["GET"])
-@jwt_required()
-def statistics():
-    return "", 404
+@STATS.route('/algorithm/<algorithm>', methods=["GET"])
+# @jwt_required()
+def statistics(algorithm):
+    response = aws_connections.DYNAMODB_TABLE.query(
+        IndexName='algorithm-index',
+        KeyConditionExpression=Key('algorithm').eq(algorithm)
+    )
+
+    items = response["Items"]
+
+    if len(items) == 0:
+        return "No runs available for algorithm " + algorithm, 400
+
+    stats = dict()
+    stats["Most Profitable Run"] = max(items, key=(lambda item: float(item.get('Strategy Result', -9999999))))
+    stats["Least Profitable Run"] = min(items, key=(lambda item: float(item.get('Strategy Result', 9999999))))
+
+    stats["Most Popular Configuration"] = get_most_popular_config(algorithm, items)
+
+    stats["Most Used Ticker"] = get_most_used('ticker', items)
+    stats["Most Used Period"] = get_most_used('period', items)
+    stats["Most Used Interval"] = get_most_used('interval', items)
+
+    stats["Average Strategy Return"] = get_average("Strategy Result", items)
+
+    return jsonify(stats), 200
 
 # endregion
