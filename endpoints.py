@@ -1,14 +1,15 @@
-from flask import Flask, jsonify, request, redirect, Blueprint
-from flask_jwt_extended import (
-    create_access_token, JWTManager, jwt_required
-)
-from trading_algorithms import *
-import aws_connections
 import datetime
 import random
 import string
-from datetime import timedelta
 from io import StringIO
+
+from flask import jsonify, request, redirect, Blueprint
+from flask_jwt_extended import (
+    create_access_token, jwt_required
+)
+
+import aws_connections
+from trading_algorithms import *
 
 # region Auth
 
