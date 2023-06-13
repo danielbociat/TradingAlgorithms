@@ -90,10 +90,10 @@ paths:
       responses:
         "200":
           description: Successful operation
-        "401":
-          description: Invalid username or password
+        "400":
+          description: Bad Request
       security:
-        - bearerAuth: [ ]
+        - bearerAuth: []
 components:
   schemas:
     Trading_Algorithm:
@@ -162,4 +162,3 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-
