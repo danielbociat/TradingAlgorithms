@@ -1,7 +1,9 @@
 import datetime
+import json
 import random
 import string
 from io import StringIO
+from decimal import Decimal
 
 from flask import jsonify, request, redirect, Blueprint
 from flask_jwt_extended import (
@@ -83,6 +85,8 @@ ALGO = Blueprint('algo', __name__)
 # @jwt_required()
 def simulate():
     try:
+        algorithm_parameters = dict()
+
         data = dict(request.json)
 
         ticker = data.get("ticker", "AAPL")
@@ -97,18 +101,27 @@ def simulate():
             rsi_short_period = data.get("rsi_short_period", 14)
             rsi_long_period = data.get("rsi_long_period", 28)
 
+            algorithm_parameters["rsi_short_period"] = rsi_short_period
+            algorithm_parameters["rsi_long_period"] = rsi_long_period
+
             alg = DoubleRSI(ticker_data, period, interval, rsi_short_period, rsi_long_period)
 
         elif algorithm == "mean_reversion":
             time_window = data.get("time_window", 20)
+
+            algorithm_parameters["time_window"] = time_window
 
             alg = MeanReversion(ticker_data, period, interval, time_window)
 
         elif algorithm == "arbitrage":
             entry_threshold = data.get("entry_threshold", 2)
             exit_threshold = data.get("exit_threshold", 0)
-
             ticker2 = data.get("ticker2", "SPY")
+
+            algorithm_parameters["entry_threshold"] = entry_threshold
+            algorithm_parameters["exit_threshold"] = exit_threshold
+            algorithm_parameters["ticker2"] = ticker2
+
             arbitrage_data = get_financial_data(ticker2, period, interval)
             alg = Arbitrage(ticker_data, period, interval, arbitrage_data, entry_threshold, exit_threshold)
 
@@ -123,23 +136,27 @@ def simulate():
         buf = str_obj.getvalue().encode()
         aws_connections.put_s3_item(aws_connections.S3, chart_name, buf, 'text/html')
 
-        # TODO : Add alg.statistics to the Item
-        aws_connections.DYNAMODB_TABLE.put_item(
-            TableName=aws_connections.DYNAMODB_RUNS_TABLE_NAME,
-            Item={
+        dynamodb_item = {
                 'timestamp_period': "".join([datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), '_', period]),
                 'algorithm': algorithm,
                 'ticker': ticker,
                 'period': period,
                 'interval': interval,
-            }
+            } | alg.simulation_stats | algorithm_parameters
+
+        dynamodb_item = json.loads(json.dumps(dynamodb_item), parse_float=Decimal)
+
+        aws_connections.DYNAMODB_TABLE.put_item(
+            TableName=aws_connections.DYNAMODB_RUNS_TABLE_NAME,
+            Item=dynamodb_item
         )
+
     except Exception as e:
         print(e)
         return "Simulation failed", 400
 
     print("SIMULATION STATS")
-    print(alg.simulation_stats)
+    print(dynamodb_item)
 
     return "Successful simulation\n See the trading chart at " + aws_connections.get_s3_bucket_item_link(
         chart_name), 200
