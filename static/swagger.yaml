@@ -114,7 +114,7 @@ paths:
         "200":
           description: Successful operation
         "400":
-          description: No runs available for algorithm {algorithm}
+          description: No runs available for algorithm
       security:
         - bearerAuth: []
     
