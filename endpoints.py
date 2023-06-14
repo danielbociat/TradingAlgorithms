@@ -126,7 +126,7 @@ def simulate():
         ticker_data = get_financial_data(ticker, period, interval)
 
         if ticker_data.empty:
-            return "The ticker {ticker} does not exist or has been removed".format(ticker=ticker), 400
+            return "The ticker {ticker} does not exist or has been removed or the period/interval is invalid".format(ticker=ticker) + CHECK_CONFIG, 400
 
         algorithm = data.get("algorithm", "")
 
