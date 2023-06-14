@@ -5,6 +5,7 @@ import string
 from collections import defaultdict
 from decimal import Decimal
 from io import StringIO
+import sys, os
 
 from boto3.dynamodb.conditions import Key
 from flask import jsonify, request, redirect, Blueprint
@@ -63,14 +64,14 @@ def home():
     return redirect('/swagger')
 
 
-# TODO - add all the configuration details: algorithms, tickers, periods and intervals
 @MISC.route('/configuration', methods=["GET"])
 @jwt_required()
 def get_algorithms():
     return jsonify(
         algorithm=['double_rsi', 'mean_reversion', 'arbitrage'],
-        period=['12mo'],
-        interval=['1d']
+        period=['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max'],
+        interval=['1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d', '5d', '1wk', '1mo', '3mo'],
+        notes="1m data is only for available for last 7 days, and data interval <1d for the last 60 days"
     ), 200
 
 
@@ -111,6 +112,9 @@ def simulate():
 
         ticker_data = get_financial_data(ticker, period, interval)
 
+        if ticker_data.empty:
+            return "The ticker {ticker} does not exist or has been removed".format(ticker = ticker), 400
+
         algorithm = data.get("algorithm", "")
 
         if algorithm == "double_rsi":
@@ -120,14 +124,14 @@ def simulate():
             algorithm_parameters["rsi_short_period"] = rsi_short_period
             algorithm_parameters["rsi_long_period"] = rsi_long_period
 
-            alg = DoubleRSI(ticker_data, period, interval, rsi_short_period, rsi_long_period)
+            alg = DoubleRSI(ticker_data, ticker, period, interval, rsi_short_period, rsi_long_period)
 
         elif algorithm == "mean_reversion":
             time_window = data.get("time_window", 20)
 
             algorithm_parameters["time_window"] = time_window
 
-            alg = MeanReversion(ticker_data, period, interval, time_window)
+            alg = MeanReversion(ticker_data, ticker, period, interval, time_window)
 
         elif algorithm == "arbitrage":
             entry_threshold = data.get("entry_threshold", 2)
@@ -139,7 +143,11 @@ def simulate():
             algorithm_parameters["ticker2"] = ticker2
 
             arbitrage_data = get_financial_data(ticker2, period, interval)
-            alg = Arbitrage(ticker_data, period, interval, arbitrage_data, entry_threshold, exit_threshold)
+
+            if arbitrage_data.empty:
+                return "The ticker {ticker} does not exist or has been removed".format(ticker=ticker2), 400
+
+            alg = Arbitrage(ticker_data, ticker, period, interval, arbitrage_data, ticker2, entry_threshold, exit_threshold)
 
         else:
             return "The selected algorithm does not exist", 400
@@ -174,9 +182,6 @@ def simulate():
     except Exception as e:
         print(e)
         return "Simulation failed", 400
-
-    print("SIMULATION STATS")
-    print(dynamodb_item)
 
     return "Successful simulation\n See the trading chart at " + aws_connections.get_s3_bucket_item_link(
         chart_name), 200
