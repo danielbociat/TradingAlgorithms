@@ -104,9 +104,7 @@ ALGO = Blueprint('algo', __name__)
 def simulate():
     try:
         algorithm_parameters = dict()
-
         data = dict(request.json)
-
         ticker = data.get("ticker", "AAPL")
         period = data.get("period", "12mo")
         interval = data.get("interval", "1d")

@@ -25,12 +25,6 @@ application.register_blueprint(endpoints.ALGO)
 application.register_blueprint(endpoints.STATS)
 
 
-@application.before_request
-def before():
-    if request.headers.get("content_type") == "application/json":
-        print(request.json)
-
-
 # TODO - add benchmark endpoint
 @application.route('/benchmark', methods=["POST"])
 @jwt_required()
