@@ -152,14 +152,17 @@ def simulate():
         buf = str_obj.getvalue().encode()
         aws_connections.put_s3_item(aws_connections.S3, chart_name, buf, 'text/html')
 
-        dynamodb_item = {
+        dynamodb_item = dict()
+        dynamodb_item.update({
                             'timestamp_period': "".join(
                                 [datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), '_', period]),
                             'algorithm': algorithm,
                             'ticker': ticker,
                             'period': period,
                             'interval': interval,
-                        } | alg.simulation_stats | algorithm_parameters
+                        })
+        dynamodb_item.update(alg.simulation_stats)
+        dynamodb_item.update(algorithm_parameters)
 
         dynamodb_item = json.loads(json.dumps(dynamodb_item), parse_float=Decimal)
 
