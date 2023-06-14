@@ -198,8 +198,8 @@ def get_most_used(key, items):
 
 
 def get_average(key, items):
-    getAllElementsWithSameKey = lambda k: [d for d in items if k in d]
-    filtered = [d[key] for d in getAllElementsWithSameKey(key)]
+    def get_all_elements_with_same_key(k): return [d for d in items if k in d]
+    filtered = [d[key] for d in get_all_elements_with_same_key(key)]
 
     if len(filtered) == 0:
         return 0

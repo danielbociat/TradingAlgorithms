@@ -115,7 +115,7 @@ class TradingAlgorithm(ABC):
                 x=entry_exit["time"],
                 y=entry_exit["price"],
                 mode="markers",
-                marker_color=["blue" if e > 0 else "orange" for e in entry_exit["mode"]], # {1: 'blue', -1: 'orange'}
+                marker_color=["blue" if e > 0 else "orange" for e in entry_exit["mode"]],
                 hovertemplate=["LONG" if e > 0 else "SHORT" for e in entry_exit["mode"]],
                 name="Position type"
             ),
