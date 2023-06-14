@@ -5,15 +5,31 @@ import string
 from collections import defaultdict
 from decimal import Decimal
 from io import StringIO
-import statistics
+
 from boto3.dynamodb.conditions import Key
 from flask import jsonify, request, redirect, Blueprint
 from flask_jwt_extended import (
     create_access_token, jwt_required
 )
+from flask_swagger_ui import get_swaggerui_blueprint
 
 import aws_connections
 from trading_algorithms import *
+
+# region Swagger
+
+SWAGGER_URL = '/swagger'
+API_URL = '/static/swagger.yaml'
+SWAGGER_BLUEPRINT = get_swaggerui_blueprint(
+    SWAGGER_URL,
+    API_URL,
+    config={
+        'app_name': "Trading Algorithms"
+    }
+)
+
+
+# endregion
 
 # region Auth
 
@@ -88,9 +104,7 @@ ALGO = Blueprint('algo', __name__)
 def simulate():
     try:
         algorithm_parameters = dict()
-
         data = dict(request.json)
-
         ticker = data.get("ticker", "AAPL")
         period = data.get("period", "12mo")
         interval = data.get("interval", "1d")
