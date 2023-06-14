@@ -1,12 +1,12 @@
-from abc import ABC, abstractmethod
-import matplotlib.pyplot as plt
 import re
-import pandas_ta as ta
-import yfinance as yf
-import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+from abc import ABC, abstractmethod
+
 import numpy as np
+import pandas as pd
+import pandas_ta as ta
+import plotly.graph_objects as go
+import yfinance as yf
+from plotly.subplots import make_subplots
 
 RFR_ANNUAL = 0.05
 RFR_DAILY = (1 + RFR_ANNUAL) ** (1 / 252) - 1
