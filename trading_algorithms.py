@@ -1,22 +1,32 @@
+import re
 from abc import ABC, abstractmethod
-import matplotlib.pyplot as plt
-import pandas_ta as ta
-import yfinance as yf
-import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+
 import numpy as np
+import pandas as pd
+import pandas_ta as ta
+import plotly.graph_objects as go
+import yfinance as yf
+from plotly.subplots import make_subplots
+
+RFR_ANNUAL = 0.05
+RFR_DAILY = (1 + RFR_ANNUAL) ** (1 / 252) - 1
+
+PERIOD_TO_DAYS = {
+    'mo': 252/12,
+    'd': 1,
+    'w': 7,
+    'y': 252
+}
 
 
-# TODO : Remove/Clear financial data from the class, add it as parameter
 class TradingAlgorithm(ABC):
-    def __init__(self, period, interval):
+    def __init__(self, ticker, period, interval):
+        self.ticker = ticker
         self.period = period
         self.interval = interval
 
         self.data = None
         self.chart = None
-        self.benchmark_data = None
         self.cumulative_returns = list()
         self.simulation_stats = dict()
         self.trades = {
@@ -24,6 +34,7 @@ class TradingAlgorithm(ABC):
             "price": [],
             "mode": []
         }
+        self.benchmark_data = yf.download("SPY", period=self.period, interval=self.interval)
 
     def run_algorithm(self):
         self.prepare_data()
@@ -40,9 +51,6 @@ class TradingAlgorithm(ABC):
     @abstractmethod
     def generate_signals(self):
         pass
-
-    def generate_benchmark(self, ticker="SPY", period="12mo", interval="1d"):
-        self.benchmark_data = yf.download(ticker, period=period, interval=interval)
 
     def execute_trades(self):
         current_pos = 0
@@ -76,28 +84,22 @@ class TradingAlgorithm(ABC):
         except Exception as e:
             print(e)
 
+    @staticmethod
+    def get_rfr(period):
+        time = re.split('(\d+)', period)
+        num = int(time[1])
+        unit = time[-1]
+
+        return RFR_DAILY ** round(PERIOD_TO_DAYS[unit] * num)
+
     # TODO: Refactor to allow for a general situation, not only yearly; Remove completely??
     def compute_alpha(self):
-        self.generate_benchmark()
+        benchmark_return = self.benchmark_data.iloc[-1]['Close']/self.benchmark_data.iloc[0]['Close'] - 1
+        beta = yf.Ticker(self.ticker).info['beta']
+        rfr = TradingAlgorithm.get_rfr(self.period)
+        strategy_return = self.simulation_stats["Strategy Result"]
 
-        self.benchmark_data['Benchmark Returns'] = self.benchmark_data['Close'].pct_change()
-        self.data['Strategy Returns'] = self.data['Position'].shift(1) * self.data['Close'].pct_change()
-
-        self.data['Excess Returns'] = self.data['Strategy Returns'] - self.benchmark_data['Benchmark Returns']
-
-        # Calculate the cumulative excess returns
-        self.data['Cumulative Excess Returns'] = (1 + self.data['Excess Returns']).cumprod() - 1
-
-        # Calculate the annualized alpha
-        annualized_alpha = (self.data['Cumulative Excess Returns'].iloc[-1] + 1) ** (252 / len(self.data)) - 1
-
-        print(f"Annualized Alpha: {annualized_alpha:.4f}")
-
-        # Plot the cumulative excess returns (alpha) over time
-        plt.plot(self.data['Cumulative Excess Returns'])
-        plt.xlabel('Time')
-        plt.ylabel('Cumulative Excess Returns (Alpha)')
-        # plt.show()
+        return strategy_return-rfr-beta*(benchmark_return-rfr)
 
     def init_chart(self):
         self.chart.add_trace(go.Candlestick(x=self.data.index,
@@ -105,6 +107,7 @@ class TradingAlgorithm(ABC):
                                             high=self.data['High'],
                                             low=self.data['Low'],
                                             close=self.data['Close'],
+                                            name=self.ticker
                                             ))
 
     def add_entry_exit(self):
@@ -115,7 +118,7 @@ class TradingAlgorithm(ABC):
                 x=entry_exit["time"],
                 y=entry_exit["price"],
                 mode="markers",
-                marker_color=["blue" if e > 0 else "orange" for e in entry_exit["mode"]], # {1: 'blue', -1: 'orange'}
+                marker_color=["blue" if e > 0 else "orange" for e in entry_exit["mode"]],
                 hovertemplate=["LONG" if e > 0 else "SHORT" for e in entry_exit["mode"]],
                 name="Position type"
             ),
@@ -133,50 +136,52 @@ class TradingAlgorithm(ABC):
     def save_chart_html(self):
         self.chart.write_html(r'.\graph.html')
 
-    @staticmethod
-    def sharpe_ratio(cumulative_return, daily_risk_free_rate):
-        cumulative_return_df = pd.Series(cumulative_return)
+    def sharpe_ratio(self):
+        cumulative_return_df = pd.Series(self.cumulative_returns)
         returns = cumulative_return_df.pct_change().dropna()
-        excess_return = returns - daily_risk_free_rate
+
+        rfr_per_period = (1 + TradingAlgorithm.get_rfr(self.period)) ** (1 / len(returns)) - 1
+
+        excess_return = returns - rfr_per_period
 
         sharpe_ratio = excess_return.mean() / excess_return.std()
 
         return sharpe_ratio
 
-    @staticmethod
-    def sortino_ratio(cumulative_return, daily_risk_free_rate):
-        cumulative_return_df = pd.Series(cumulative_return)
+    def sortino_ratio(self):
+        cumulative_return_df = pd.Series(self.cumulative_returns)
         returns = cumulative_return_df.pct_change().dropna()
-        excess_return = returns - daily_risk_free_rate
 
-        print(daily_risk_free_rate)
+        rfr_per_period = (1 + TradingAlgorithm.get_rfr(self.period)) ** (1 / len(returns)) - 1
+
+        excess_return = returns - rfr_per_period
 
         downside_deviation = excess_return[excess_return < 0].std()
         sortino_ratio = excess_return.mean() / downside_deviation
 
         return sortino_ratio
 
-    # TODO : Review this
     # TODO : create small chart (Scatter look RSI) to showcase progress of starting with 100$, take cumulative_return * 100
     def populate_simulation_stats(self):
         self.simulation_stats["Number of trades"] = len(self.trades["time"])
         self.simulation_stats["Profitable trades"] = len(
             [y for x, y in zip([1] + self.cumulative_returns, self.cumulative_returns) if y < x])
         self.simulation_stats["Strategy Result"] = self.cumulative_returns[-1] - 1
-        self.simulation_stats["Max Profit"] = np.nanmax(self.cumulative_returns) - 1
-        self.simulation_stats["Max Loss"] = np.nanmin(self.cumulative_returns) - 1
-
-        risk_free_rate_annual = 0.03
-        risk_free_rate_daily = (1 + risk_free_rate_annual) ** (1 / 252) - 1
+        self.simulation_stats["Max Profit"] = int(np.nanmax(self.cumulative_returns) - 1)
+        self.simulation_stats["Max Loss"] = int(np.nanmin(self.cumulative_returns) - 1)
 
         # TODO : add check if alg does not have daily step
-        self.simulation_stats["Sharpe ratio"] = TradingAlgorithm.sharpe_ratio(self.cumulative_returns, risk_free_rate_daily)
-        self.simulation_stats["Sortino ratio"] = TradingAlgorithm.sortino_ratio(self.cumulative_returns, risk_free_rate_daily)
+        if self.simulation_stats["Number of trades"] > 1:
+            self.simulation_stats["Sharpe ratio"] = self.sharpe_ratio()
+            self.simulation_stats["Sortino ratio"] = self.sortino_ratio()
+        self.simulation_stats["Alpha"] = self.compute_alpha()
 
+        print("SIM STATS")
+        print(self.simulation_stats)
 
 class MeanReversion(TradingAlgorithm):
-    def __init__(self, data, period, interval, time_window=20):
-        super().__init__(period, interval)
+    def __init__(self, data, ticker, period, interval, time_window=20):
+        super().__init__(ticker, period, interval)
         self.data = data
         self.time_window = time_window
 
@@ -218,8 +223,8 @@ class MeanReversion(TradingAlgorithm):
 
 
 class DoubleRSI(TradingAlgorithm):
-    def __init__(self, data, period, interval, rsi_short_period=14, rsi_long_period=28):
-        super().__init__(period, interval)
+    def __init__(self, data, ticker, period, interval, rsi_short_period=14, rsi_long_period=28):
+        super().__init__(ticker, period, interval)
         self.data = data
         self.rsi_short_period = rsi_short_period
         self.rsi_long_period = rsi_long_period
@@ -268,12 +273,13 @@ class DoubleRSI(TradingAlgorithm):
 
 
 class Arbitrage(TradingAlgorithm):
-    def __init__(self,  data, period, interval, arbitrage_data, entry_threshold=2, exit_threshold=0):
-        super().__init__(period, interval)
+    def __init__(self, data, ticker, period, interval, arbitrage_data, ticker2, entry_threshold=2, exit_threshold=0):
+        super().__init__(ticker, period, interval)
         self.data1 = data
         self.data2 = arbitrage_data
         self.entry_threshold = entry_threshold
         self.exit_threshold = exit_threshold
+        self.ticker2 = ticker2
 
     def prepare_data(self):
         self.data = pd.concat([self.data1['Close'], self.data2['Close']], axis=1, join='inner')

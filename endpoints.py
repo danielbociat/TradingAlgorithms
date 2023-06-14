@@ -16,6 +16,15 @@ from flask_swagger_ui import get_swaggerui_blueprint
 import aws_connections
 from trading_algorithms import *
 
+# region Constants
+
+PERIODS = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']
+INTERVALS = ['1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d', '5d', '1wk', '1mo', '3mo']
+ALGORITHMS = ['double_rsi', 'mean_reversion', 'arbitrage']
+CHECK_CONFIG = "\nCheck the /configuration endpoint to see the available configurations"
+
+# endregion
+
 # region Swagger
 
 SWAGGER_URL = '/swagger'
@@ -27,7 +36,6 @@ SWAGGER_BLUEPRINT = get_swaggerui_blueprint(
         'app_name': "Trading Algorithms"
     }
 )
-
 
 # endregion
 
@@ -54,7 +62,6 @@ def auth():
 
 # region Home and Config
 
-
 MISC = Blueprint('misc', __name__)
 
 
@@ -63,14 +70,14 @@ def home():
     return redirect('/swagger')
 
 
-# TODO - add all the configuration details: algorithms, tickers, periods and intervals
 @MISC.route('/configuration', methods=["GET"])
 @jwt_required()
 def get_algorithms():
     return jsonify(
-        algorithm=['double_rsi', 'mean_reversion', 'arbitrage'],
-        period=['12mo'],
-        interval=['1d']
+        algorithm=ALGORITHMS,
+        period=PERIODS,
+        interval=INTERVALS,
+        notes="1m data is only for available for last 7 days, and data interval <1d for the last 60 days"
     ), 200
 
 
@@ -107,11 +114,24 @@ def simulate():
         data = dict(request.json)
         ticker = data.get("ticker", "AAPL")
         period = data.get("period", "12mo")
+
+        if period not in PERIODS:
+            return "The selected period is incorrect" + CHECK_CONFIG, 400
+
         interval = data.get("interval", "1d")
+
+        if interval not in interval:
+            return "The selected interval is incorrect" + CHECK_CONFIG, 400
 
         ticker_data = get_financial_data(ticker, period, interval)
 
+        if ticker_data.empty:
+            return "The ticker {ticker} does not exist or has been removed or the period/interval is invalid".format(ticker=ticker) + CHECK_CONFIG, 400
+
         algorithm = data.get("algorithm", "")
+
+        if algorithm not in ALGORITHMS:
+            return "The selected algorithm does not exist" + CHECK_CONFIG, 400
 
         if algorithm == "double_rsi":
             rsi_short_period = data.get("rsi_short_period", 14)
@@ -120,14 +140,14 @@ def simulate():
             algorithm_parameters["rsi_short_period"] = rsi_short_period
             algorithm_parameters["rsi_long_period"] = rsi_long_period
 
-            alg = DoubleRSI(ticker_data, period, interval, rsi_short_period, rsi_long_period)
+            alg = DoubleRSI(ticker_data, ticker, period, interval, rsi_short_period, rsi_long_period)
 
         elif algorithm == "mean_reversion":
             time_window = data.get("time_window", 20)
 
             algorithm_parameters["time_window"] = time_window
 
-            alg = MeanReversion(ticker_data, period, interval, time_window)
+            alg = MeanReversion(ticker_data, ticker, period, interval, time_window)
 
         elif algorithm == "arbitrage":
             entry_threshold = data.get("entry_threshold", 2)
@@ -139,10 +159,12 @@ def simulate():
             algorithm_parameters["ticker2"] = ticker2
 
             arbitrage_data = get_financial_data(ticker2, period, interval)
-            alg = Arbitrage(ticker_data, period, interval, arbitrage_data, entry_threshold, exit_threshold)
 
-        else:
-            return "The selected algorithm does not exist", 400
+            if arbitrage_data.empty:
+                return "The ticker {ticker} does not exist or has been removed".format(ticker=ticker2), 400
+
+            alg = Arbitrage(ticker_data, ticker, period, interval, arbitrage_data, ticker2, entry_threshold,
+                            exit_threshold)
 
         alg.run_algorithm()
 
@@ -154,13 +176,13 @@ def simulate():
 
         dynamodb_item = dict()
         dynamodb_item.update({
-                            'timestamp_period': "".join(
-                                [datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), '_', period]),
-                            'algorithm': algorithm,
-                            'ticker': ticker,
-                            'period': period,
-                            'interval': interval,
-                        })
+            'timestamp_period': "".join(
+                [datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), '_', period]),
+            'algorithm': algorithm,
+            'ticker': ticker,
+            'period': period,
+            'interval': interval,
+        })
         dynamodb_item.update(alg.simulation_stats)
         dynamodb_item.update(algorithm_parameters)
 
@@ -175,11 +197,8 @@ def simulate():
         print(e)
         return "Simulation failed", 400
 
-    print("SIMULATION STATS")
-    print(dynamodb_item)
-
-    return "Successful simulation\n See the trading chart at " + aws_connections.get_s3_bucket_item_link(
-        chart_name), 200
+    return "Successful simulation\n See the trading chart at " + \
+           aws_connections.get_s3_bucket_item_link(chart_name), 200
 
 
 # endregion
@@ -198,8 +217,9 @@ def get_most_used(key, items):
 
 
 def get_average(key, items):
-    getAllElementsWithSameKey = lambda k: [d for d in items if k in d]
-    filtered = [d[key] for d in getAllElementsWithSameKey(key)]
+    def get_all_elements_with_same_key(k): return [d for d in items if k in d]
+
+    filtered = [d[key] for d in get_all_elements_with_same_key(key)]
 
     if len(filtered) == 0:
         return 0
@@ -253,7 +273,8 @@ def statistics(algorithm):
     stats["Average Strategy Return"] = get_average("Strategy Result", items)
 
     stats["Total Runs"] = len(items)
-    stats["Profitable Runs"] = len([item["Strategy Result"] for item in items if "Strategy Result" in item and item["Strategy Result"] > 0])
+    stats["Profitable Runs"] = len(
+        [item["Strategy Result"] for item in items if "Strategy Result" in item and item["Strategy Result"] > 0])
 
     return jsonify(stats), 200
 
