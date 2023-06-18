@@ -18,7 +18,7 @@ from trading_algorithms import *
 
 # region Constants
 
-PERIODS = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']
+PERIODS = ['1d', '5d', '1mo', '3mo', '6mo', '12mo', '1y', '2y', '5y', '10y', 'ytd', 'max']
 INTERVALS = ['1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d', '5d', '1wk', '1mo', '3mo']
 ALGORITHMS = ['double_rsi', 'mean_reversion', 'arbitrage']
 CHECK_CONFIG = "\nCheck the /configuration endpoint to see the available configurations"
@@ -176,9 +176,8 @@ def simulate():
 
         dynamodb_item = dict()
         dynamodb_item.update({
-            'timestamp_period': "".join(
-                [datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), '_', period]),
             'algorithm': algorithm,
+            'timestamp': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'ticker': ticker,
             'period': period,
             'interval': interval,
@@ -251,7 +250,6 @@ STATS = Blueprint('stats', __name__, url_prefix='/stats')
 # @jwt_required()
 def statistics(algorithm):
     response = aws_connections.DYNAMODB_TABLE.query(
-        IndexName='algorithm-index',
         KeyConditionExpression=Key('algorithm').eq(algorithm)
     )
 

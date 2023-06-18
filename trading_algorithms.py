@@ -95,7 +95,7 @@ class TradingAlgorithm(ABC):
     # TODO: Refactor to allow for a general situation, not only yearly; Remove completely??
     def compute_alpha(self):
         benchmark_return = self.benchmark_data.iloc[-1]['Close']/self.benchmark_data.iloc[0]['Close'] - 1
-        beta = yf.Ticker(self.ticker).info['beta']
+        beta = yf.Ticker(self.ticker).info.get('beta', 1.0)
         rfr = TradingAlgorithm.get_rfr(self.period)
         strategy_return = self.simulation_stats["Strategy Result"]
 
@@ -178,6 +178,7 @@ class TradingAlgorithm(ABC):
 
         print("SIM STATS")
         print(self.simulation_stats)
+
 
 class MeanReversion(TradingAlgorithm):
     def __init__(self, data, ticker, period, interval, time_window=20):
