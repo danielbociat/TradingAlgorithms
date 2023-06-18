@@ -92,7 +92,6 @@ class TradingAlgorithm(ABC):
 
         return RFR_DAILY ** round(PERIOD_TO_DAYS[unit] * num)
 
-    # TODO: Refactor to allow for a general situation, not only yearly; Remove completely??
     def compute_alpha(self):
         benchmark_return = self.benchmark_data.iloc[-1]['Close']/self.benchmark_data.iloc[0]['Close'] - 1
         beta = yf.Ticker(self.ticker).info.get('beta', 1.0)
@@ -167,10 +166,12 @@ class TradingAlgorithm(ABC):
         self.simulation_stats["Profitable trades"] = len(
             [y for x, y in zip([1] + self.cumulative_returns, self.cumulative_returns) if y < x])
         self.simulation_stats["Strategy Result"] = self.cumulative_returns[-1] - 1
-        self.simulation_stats["Max Profit"] = int(np.nanmax(self.cumulative_returns) - 1)
-        self.simulation_stats["Max Loss"] = int(np.nanmin(self.cumulative_returns) - 1)
 
-        # TODO : add check if alg does not have daily step
+        print(self.cumulative_returns)
+
+        self.simulation_stats["Max Profit"] = float(np.nanmax(self.cumulative_returns) - 1)
+        self.simulation_stats["Max Loss"] = float(np.nanmin(self.cumulative_returns) - 1)
+
         if self.simulation_stats["Number of trades"] > 1:
             self.simulation_stats["Sharpe ratio"] = self.sharpe_ratio()
             self.simulation_stats["Sortino ratio"] = self.sortino_ratio()

@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from flask import Flask
 from flask_jwt_extended import (
-    JWTManager, jwt_required
+    JWTManager
 )
 
 import aws_connections
@@ -23,14 +23,6 @@ application.register_blueprint(endpoints.AUTH)
 application.register_blueprint(endpoints.MISC)
 application.register_blueprint(endpoints.ALGO)
 application.register_blueprint(endpoints.STATS)
-
-
-# TODO - add benchmark endpoint
-@application.route('/benchmark', methods=["POST"])
-@jwt_required()
-def benchmark():
-    return "", 404
-
 
 if __name__ == "__main__":
     application.run(debug=True)
