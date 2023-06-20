@@ -339,18 +339,32 @@ class Arbitrage(TradingAlgorithm):
     def execute_trades(self):
         current_sum = 1
         self.trades["price2"] = list()
-        self.data['Position'] = self.data['Position'].shift(1)
+
+        prev_1 = 1
+        prev_2 = 1
+        pos_1 = 0
+        pos_2 = 0
+        self.data['Position'] = self.data['Position']
 
         try:
             for index, row in self.data.iterrows():
+                curr_1 = row["Data 1"]
+                curr_2 = row["Data 2"]
                 if row["Position"] in [-1, 1]:
-                    # Execute trade
-                    current_sum = current_sum * ((row["Data 2"] / row["Data 1"]) ** row["Position"])
+
+                    daily_return = (curr_1 / prev_1) ** pos_1 * (curr_2 / prev_2) ** pos_2
+
+                    current_sum = current_sum * daily_return
 
                     self.trades["price"].append(row["Data 1"])
                     self.trades["price2"].append(row["Data 2"])
                     self.trades["time"].append(index)
                     self.trades["mode"].append(row["Position"])
+
+                pos_1 = row["Position"]
+                pos_2 = -row["Position"]
+                prev_1 = curr_1
+                prev_2 = curr_2
 
                 self.cumulative_returns.append(current_sum)
 

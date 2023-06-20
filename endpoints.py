@@ -203,7 +203,6 @@ def simulate():
     response.update(alg.simulation_stats)
     response['trading_chart'] = aws_connections.get_s3_bucket_item_link(chart_name)
     response['portfolio_evolution'] = aws_connections.get_s3_bucket_item_link(portfolio_chart_name)
-
     return jsonify(response), 200
 
 
