@@ -16,7 +16,7 @@ For local development:
 6. For Secrets Manager create a second secret called 'credential' using plaintext in the format:
     {"credentials" : {"username":"YOUR_USERNAME","password":"YOUR_PASSWORD"}}, 'YOUR_USERNAME' and 'YOUR_PASSWORD' may
     be replaced with credentials of yout choosing.
-7. For DynamoDB create a Table with the partition key: 'timestamp_period' and sort key: 'algorithm'
+7. For DynamoDB create a Table with the partition key: 'algorithm' and sort key: 'timestamp'
 8. Add the DynamoDB Table name in the 'config.ini' file
 9. Create a public S3 bucket with the following policy and replace 'BUCKET_NAME' with your bucket value:
 

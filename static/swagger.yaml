@@ -15,17 +15,6 @@ tags:
   description: Retrieve statistics from runs
 
 paths:
-  /:
-    get:
-      summary: Test
-      description: Test
-      operationId: test
-      requestBody:
-      responses:
-        "200":
-          description: Successful operation
-        "401":
-          description: Invalid username or password
   /auth:
     post:
       tags:

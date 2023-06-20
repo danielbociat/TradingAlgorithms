@@ -18,11 +18,11 @@ from trading_algorithms import *
 
 # region Constants
 
-PERIODS = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']
+PERIODS = ['1d', '5d', '1mo', '3mo', '6mo', '12mo', '1y', '2y', '5y', '10y', 'ytd', 'max']
 INTERVALS = ['1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d', '5d', '1wk', '1mo', '3mo']
 ALGORITHMS = ['double_rsi', 'mean_reversion', 'arbitrage']
 CHECK_CONFIG = "\nCheck the /configuration endpoint to see the available configurations"
-
+CONFIG_NOTES = "1m data is only for available for last 7 days, and data interval <1d for the last 60 days"
 # endregion
 
 # region Swagger
@@ -48,9 +48,7 @@ AUTH = Blueprint('auth', __name__)
 def auth():
     username = request.json.get('username', None)
     password = request.json.get('password', None)
-
     credentials = aws_connections.get_secret_from_secrets_manager(aws_connections.SECRETS_MANAGER, "credentials")
-
     if not (username == credentials["username"] and password == credentials["password"]):
         return jsonify({"msg": "Invalid username or password"}), 401
 
@@ -77,7 +75,7 @@ def get_algorithms():
         algorithm=ALGORITHMS,
         period=PERIODS,
         interval=INTERVALS,
-        notes="1m data is only for available for last 7 days, and data interval <1d for the last 60 days"
+        notes=CONFIG_NOTES
     ), 200
 
 
@@ -88,24 +86,18 @@ def get_algorithms():
 def get_financial_data(ticker, period, interval):
     key = ticker + period + interval
     ticker_data = None
-
     if aws_connections.MEMCACHE is not None:
         ticker_data = aws_connections.MEMCACHE.get(key)
-
     if ticker_data is None:
         ticker_data = yf.download(ticker, period=period, interval=interval)
-
         if aws_connections.MEMCACHE is not None:
             aws_connections.MEMCACHE.set(key, ticker_data, 12 * 60 * 60)
-
     return ticker_data
 
 
 ALGO = Blueprint('algo', __name__)
 
 
-# TODO - Add simulation stats to dynamo db
-# TODO - Add custom messages for failing situations
 @ALGO.route('/simulate', methods=["POST"])
 # @jwt_required()
 def simulate():
@@ -132,6 +124,8 @@ def simulate():
 
         if algorithm not in ALGORITHMS:
             return "The selected algorithm does not exist" + CHECK_CONFIG, 400
+
+        alg = None
 
         if algorithm == "double_rsi":
             rsi_short_period = data.get("rsi_short_period", 14)
@@ -166,19 +160,27 @@ def simulate():
             alg = Arbitrage(ticker_data, ticker, period, interval, arbitrage_data, ticker2, entry_threshold,
                             exit_threshold)
 
+        if alg is None:
+            return "The has been an error, check the configuration", 400
+
         alg.run_algorithm()
 
         chart_name = ''.join(random.sample(string.ascii_letters + string.digits, 16))
         str_obj = StringIO()
-        alg.chart.write_html(str_obj, 'html')
+        alg.trading_chart.write_html(str_obj, 'html')
         buf = str_obj.getvalue().encode()
         aws_connections.put_s3_item(aws_connections.S3, chart_name, buf, 'text/html')
 
+        portfolio_chart_name = ''.join(random.sample(string.ascii_letters + string.digits, 16))
+        str_obj = StringIO()
+        alg.progress_chart.write_html(str_obj, 'html')
+        buf = str_obj.getvalue().encode()
+        aws_connections.put_s3_item(aws_connections.S3, portfolio_chart_name, buf, 'text/html')
+
         dynamodb_item = dict()
         dynamodb_item.update({
-            'timestamp_period': "".join(
-                [datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), '_', period]),
             'algorithm': algorithm,
+            'timestamp': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'ticker': ticker,
             'period': period,
             'interval': interval,
@@ -197,8 +199,11 @@ def simulate():
         print(e)
         return "Simulation failed", 400
 
-    return "Successful simulation\n See the trading chart at " + \
-           aws_connections.get_s3_bucket_item_link(chart_name), 200
+    response = dict()
+    response.update(alg.simulation_stats)
+    response['trading_chart'] = aws_connections.get_s3_bucket_item_link(chart_name)
+    response['portfolio_evolution'] = aws_connections.get_s3_bucket_item_link(portfolio_chart_name)
+    return jsonify(response), 200
 
 
 # endregion
@@ -246,12 +251,10 @@ def get_most_popular_config(algorithm, items):
 STATS = Blueprint('stats', __name__, url_prefix='/stats')
 
 
-# TODO : Add endpoints for statistics => look into dynamodb queries
 @STATS.route('/algorithm/<algorithm>', methods=["GET"])
 # @jwt_required()
 def statistics(algorithm):
     response = aws_connections.DYNAMODB_TABLE.query(
-        IndexName='algorithm-index',
         KeyConditionExpression=Key('algorithm').eq(algorithm)
     )
 

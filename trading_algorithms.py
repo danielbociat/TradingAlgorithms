@@ -1,3 +1,4 @@
+import math
 import re
 from abc import ABC, abstractmethod
 
@@ -26,7 +27,8 @@ class TradingAlgorithm(ABC):
         self.interval = interval
 
         self.data = None
-        self.chart = None
+        self.trading_chart = None
+        self.progress_chart = None
         self.cumulative_returns = list()
         self.simulation_stats = dict()
         self.trades = {
@@ -92,28 +94,30 @@ class TradingAlgorithm(ABC):
 
         return RFR_DAILY ** round(PERIOD_TO_DAYS[unit] * num)
 
-    # TODO: Refactor to allow for a general situation, not only yearly; Remove completely??
     def compute_alpha(self):
         benchmark_return = self.benchmark_data.iloc[-1]['Close']/self.benchmark_data.iloc[0]['Close'] - 1
-        beta = yf.Ticker(self.ticker).info['beta']
+        beta = yf.Ticker(self.ticker).info.get('beta', 1.0)
         rfr = TradingAlgorithm.get_rfr(self.period)
         strategy_return = self.simulation_stats["Strategy Result"]
 
         return strategy_return-rfr-beta*(benchmark_return-rfr)
 
     def init_chart(self):
-        self.chart.add_trace(go.Candlestick(x=self.data.index,
-                                            open=self.data['Open'],
-                                            high=self.data['High'],
-                                            low=self.data['Low'],
-                                            close=self.data['Close'],
-                                            name=self.ticker
-                                            ))
+        self.trading_chart.add_trace(
+            go.Candlestick(
+                x=self.data.index,
+                open=self.data['Open'],
+                high=self.data['High'],
+                low=self.data['Low'],
+                close=self.data['Close'],
+                name=self.ticker
+            )
+        )
 
     def add_entry_exit(self):
         entry_exit = pd.DataFrame(self.trades)
 
-        self.chart.add_trace(
+        self.trading_chart.add_trace(
             go.Scatter(
                 x=entry_exit["time"],
                 y=entry_exit["price"],
@@ -128,13 +132,13 @@ class TradingAlgorithm(ABC):
         pass
 
     def remove_gaps_chart(self):
-        self.chart.update_yaxes(fixedrange=False)
-        self.chart.update_xaxes(rangebreaks=[
+        self.trading_chart.update_yaxes(fixedrange=False)
+        self.trading_chart.update_xaxes(rangebreaks=[
             dict(bounds=['sat', 'mon']),  # hide weekends
         ])
 
     def save_chart_html(self):
-        self.chart.write_html(r'.\graph.html')
+        self.trading_chart.write_html(r'.\graph.html')
 
     def sharpe_ratio(self):
         cumulative_return_df = pd.Series(self.cumulative_returns)
@@ -161,23 +165,52 @@ class TradingAlgorithm(ABC):
 
         return sortino_ratio
 
-    # TODO : create small chart (Scatter look RSI) to showcase progress of starting with 100$, take cumulative_return * 100
     def populate_simulation_stats(self):
         self.simulation_stats["Number of trades"] = len(self.trades["time"])
         self.simulation_stats["Profitable trades"] = len(
-            [y for x, y in zip([1] + self.cumulative_returns, self.cumulative_returns) if y < x])
+            [y for x, y in zip([1] + self.cumulative_returns, self.cumulative_returns) if y < x]
+        )
         self.simulation_stats["Strategy Result"] = self.cumulative_returns[-1] - 1
-        self.simulation_stats["Max Profit"] = int(np.nanmax(self.cumulative_returns) - 1)
-        self.simulation_stats["Max Loss"] = int(np.nanmin(self.cumulative_returns) - 1)
+        self.simulation_stats["Max Profit"] = float(np.nanmax(self.cumulative_returns) - 1)
+        self.simulation_stats["Max Loss"] = float(np.nanmin(self.cumulative_returns) - 1)
 
-        # TODO : add check if alg does not have daily step
         if self.simulation_stats["Number of trades"] > 1:
-            self.simulation_stats["Sharpe ratio"] = self.sharpe_ratio()
-            self.simulation_stats["Sortino ratio"] = self.sortino_ratio()
-        self.simulation_stats["Alpha"] = self.compute_alpha()
+            sharpe = self.sharpe_ratio()
+            if not math.isnan(sharpe):
+                self.simulation_stats["Sharpe ratio"] = self.sharpe_ratio()
 
-        print("SIM STATS")
-        print(self.simulation_stats)
+            sortino = self.sortino_ratio()
+            if not math.isnan(sortino):
+                self.simulation_stats["Sortino ratio"] = sortino
+
+        self.simulation_stats["Alpha"] = self.compute_alpha()
+        self.create_progress_chart()
+
+    def create_progress_chart(self):
+        self.progress_chart = make_subplots(
+            specs=[[{"secondary_y": True}]],
+            shared_xaxes=True
+        )
+
+        STARTING_MONEY = 100
+        strategy_progress = [STARTING_MONEY * x for x in self.cumulative_returns]
+
+        self.progress_chart.add_trace(
+            go.Scatter(x=self.data.index, y=strategy_progress, marker_color='blue', name='Trading Algorithm'))
+
+        if not isinstance(self, Arbitrage):
+            hold_init_price = self.data["Close"].iloc[0]
+            holding_result = [STARTING_MONEY * x / hold_init_price for x in self.data['Close'].tolist()]
+
+            self.progress_chart.add_trace(
+                go.Scatter(x=self.data.index, y=holding_result, marker_color='red', name='Holding ' + self.ticker))
+
+        benchmark_init_price = self.benchmark_data["Close"].iloc[0]
+        benchmark_result = [STARTING_MONEY * x / benchmark_init_price for x in self.benchmark_data['Close'].tolist()]
+
+        self.progress_chart.add_trace(
+            go.Scatter(x=self.data.index, y=benchmark_result, marker_color='green', name='S&P500'))
+
 
 class MeanReversion(TradingAlgorithm):
     def __init__(self, data, ticker, period, interval, time_window=20):
@@ -207,14 +240,14 @@ class MeanReversion(TradingAlgorithm):
             self.data['Position'][i] = self.data['Signal'][i]
 
     def update_chart(self):
-        self.chart = make_subplots(
+        self.trading_chart = make_subplots(
             specs=[[{"secondary_y": True}]],
             shared_xaxes=True
         )
         super().init_chart()
-        self.chart.add_trace(
+        self.trading_chart.add_trace(
             go.Scatter(x=self.data.index, y=self.data['Upper Band'], marker_color='blue', name='Upper Band'))
-        self.chart.add_trace(
+        self.trading_chart.add_trace(
             go.Scatter(x=self.data.index, y=self.data['Lower Band'], marker_color='red', name='Lower Band'))
 
     def populate_simulation_stats(self):
@@ -249,19 +282,21 @@ class DoubleRSI(TradingAlgorithm):
             self.data['Position'][i] = self.data['Signal'][i]
 
     def update_chart(self):
-        self.chart = make_subplots(rows=2, cols=1,
-                                   specs=[[{"secondary_y": True}], [{}]],
-                                   shared_xaxes=True,
-                                   vertical_spacing=0.05,
-                                   row_heights=[0.75, 0.25])
+        self.trading_chart = make_subplots(
+            rows=2, cols=1,
+            specs=[[{"secondary_y": True}], [{}]],
+            shared_xaxes=True,
+            vertical_spacing=0.05,
+            row_heights=[0.75, 0.25]
+        )
         self.init_chart()
-        self.chart.add_trace(
+        self.trading_chart.add_trace(
             go.Scatter(x=self.data.index, y=self.data['RSI Short'], marker_color='blue', name='RSI Short'),
             row=2, col=1)
-        self.chart.add_trace(
+        self.trading_chart.add_trace(
             go.Scatter(x=self.data.index, y=self.data['RSI Long'], marker_color='red', name='RSI Long'),
             row=2, col=1)
-        self.chart.update_layout(
+        self.trading_chart.update_layout(
             xaxis_rangeslider_visible=False,
             xaxis2_rangeslider_visible=True,
             xaxis_type="date"
@@ -304,19 +339,34 @@ class Arbitrage(TradingAlgorithm):
     def execute_trades(self):
         current_sum = 1
         self.trades["price2"] = list()
-        self.data['Position'] = self.data['Position'].shift(1)
+
+        prev_1 = 1
+        prev_2 = 1
+        pos_1 = 0
+        pos_2 = 0
+        self.data['Position'] = self.data['Position']
 
         try:
             for index, row in self.data.iterrows():
+                curr_1 = row["Data 1"]
+                curr_2 = row["Data 2"]
                 if row["Position"] in [-1, 1]:
-                    # Execute trade
-                    current_sum = current_sum * ((row["Data 2"] / row["Data 1"]) ** row["Position"])
+
+                    daily_return = (curr_1 / prev_1) ** pos_1 * (curr_2 / prev_2) ** pos_2
+
+                    current_sum = current_sum * daily_return
 
                     self.trades["price"].append(row["Data 1"])
                     self.trades["price2"].append(row["Data 2"])
                     self.trades["time"].append(index)
                     self.trades["mode"].append(row["Position"])
-                    self.cumulative_returns.append(current_sum)
+
+                pos_1 = row["Position"]
+                pos_2 = -row["Position"]
+                prev_1 = curr_1
+                prev_2 = curr_2
+
+                self.cumulative_returns.append(current_sum)
 
         except Exception as e:
             print(e)
@@ -324,23 +374,30 @@ class Arbitrage(TradingAlgorithm):
     def populate_simulation_stats(self):
         super().populate_simulation_stats()
 
-    def init_chart(self, data, row):
-        self.chart.add_trace(go.Candlestick(x=data.index,
-                                            open=data['Open'],
-                                            high=data['High'],
-                                            low=data['Low'],
-                                            close=data['Close'],
-                                            ), row=row, col=1)
+    def init_chart(self, data, row, name=""):
+        self.trading_chart.add_trace(
+            go.Candlestick(
+                x=data.index,
+                open=data['Open'],
+                high=data['High'],
+                low=data['Low'],
+                close=data['Close'],
+                name=name
+            ),
+            row=row, col=1
+        )
 
     def update_chart(self):
-        self.chart = make_subplots(rows=2, cols=1,
-                                   specs=[[{"secondary_y": True}], [{}]],
-                                   shared_xaxes=True,
-                                   vertical_spacing=0.05,
-                                   row_heights=[0.5, 0.5])
-        self.init_chart(self.data1, 1)
-        self.init_chart(self.data2, 2)
-        self.chart.update_layout(
+        self.trading_chart = make_subplots(
+            rows=2, cols=1,
+            specs=[[{"secondary_y": True}], [{}]],
+            shared_xaxes=True,
+            vertical_spacing=0.05,
+            row_heights=[0.5, 0.5]
+        )
+        self.init_chart(self.data1, 1, self.ticker)
+        self.init_chart(self.data2, 2, self.ticker2)
+        self.trading_chart.update_layout(
             xaxis_rangeslider_visible=False,
             xaxis2_rangeslider_visible=True,
             xaxis_type="date"
@@ -349,7 +406,7 @@ class Arbitrage(TradingAlgorithm):
     def add_entry_exit(self):
         entry_exit = pd.DataFrame(self.trades)
 
-        self.chart.add_trace(
+        self.trading_chart.add_trace(
             go.Scatter(
                 x=entry_exit["time"],
                 y=entry_exit["price"],
@@ -361,7 +418,7 @@ class Arbitrage(TradingAlgorithm):
             row=1, col=1
         )
 
-        self.chart.add_trace(
+        self.trading_chart.add_trace(
             go.Scatter(
                 x=entry_exit["time"],
                 y=entry_exit["price2"],
@@ -375,6 +432,6 @@ class Arbitrage(TradingAlgorithm):
 
     def remove_gaps_chart(self):
         super().remove_gaps_chart()
-        self.chart.update_xaxes(rangebreaks=[
+        self.trading_chart.update_xaxes(rangebreaks=[
             dict(bounds=[16, 9.5], pattern='hour'),
         ])
