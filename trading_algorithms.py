@@ -103,13 +103,16 @@ class TradingAlgorithm(ABC):
         return strategy_return-rfr-beta*(benchmark_return-rfr)
 
     def init_chart(self):
-        self.trading_chart.add_trace(go.Candlestick(x=self.data.index,
-                                                    open=self.data['Open'],
-                                                    high=self.data['High'],
-                                                    low=self.data['Low'],
-                                                    close=self.data['Close'],
-                                                    name=self.ticker
-                                                    ))
+        self.trading_chart.add_trace(
+            go.Candlestick(
+                x=self.data.index,
+                open=self.data['Open'],
+                high=self.data['High'],
+                low=self.data['Low'],
+                close=self.data['Close'],
+                name=self.ticker
+            )
+        )
 
     def add_entry_exit(self):
         entry_exit = pd.DataFrame(self.trades)
@@ -162,13 +165,12 @@ class TradingAlgorithm(ABC):
 
         return sortino_ratio
 
-    # TODO : create small chart (Scatter look RSI) to showcase progress of starting with 100$, take cumulative_return * 100
     def populate_simulation_stats(self):
         self.simulation_stats["Number of trades"] = len(self.trades["time"])
         self.simulation_stats["Profitable trades"] = len(
-            [y for x, y in zip([1] + self.cumulative_returns, self.cumulative_returns) if y < x])
+            [y for x, y in zip([1] + self.cumulative_returns, self.cumulative_returns) if y < x]
+        )
         self.simulation_stats["Strategy Result"] = self.cumulative_returns[-1] - 1
-
         self.simulation_stats["Max Profit"] = float(np.nanmax(self.cumulative_returns) - 1)
         self.simulation_stats["Max Loss"] = float(np.nanmin(self.cumulative_returns) - 1)
 
@@ -208,7 +210,6 @@ class TradingAlgorithm(ABC):
 
         self.progress_chart.add_trace(
             go.Scatter(x=self.data.index, y=benchmark_result, marker_color='green', name='S&P500'))
-
 
 
 class MeanReversion(TradingAlgorithm):
@@ -281,11 +282,13 @@ class DoubleRSI(TradingAlgorithm):
             self.data['Position'][i] = self.data['Signal'][i]
 
     def update_chart(self):
-        self.trading_chart = make_subplots(rows=2, cols=1,
-                                   specs=[[{"secondary_y": True}], [{}]],
-                                   shared_xaxes=True,
-                                   vertical_spacing=0.05,
-                                   row_heights=[0.75, 0.25])
+        self.trading_chart = make_subplots(
+            rows=2, cols=1,
+            specs=[[{"secondary_y": True}], [{}]],
+            shared_xaxes=True,
+            vertical_spacing=0.05,
+            row_heights=[0.75, 0.25]
+        )
         self.init_chart()
         self.trading_chart.add_trace(
             go.Scatter(x=self.data.index, y=self.data['RSI Short'], marker_color='blue', name='RSI Short'),
@@ -358,19 +361,26 @@ class Arbitrage(TradingAlgorithm):
         super().populate_simulation_stats()
 
     def init_chart(self, data, row, name=""):
-        self.trading_chart.add_trace(go.Candlestick(x=data.index,
-                                            open=data['Open'],
-                                            high=data['High'],
-                                            low=data['Low'],
-                                            close=data['Close'],
-                                            name=name), row=row, col=1)
+        self.trading_chart.add_trace(
+            go.Candlestick(
+                x=data.index,
+                open=data['Open'],
+                high=data['High'],
+                low=data['Low'],
+                close=data['Close'],
+                name=name
+            ),
+            row=row, col=1
+        )
 
     def update_chart(self):
-        self.trading_chart = make_subplots(rows=2, cols=1,
-                                   specs=[[{"secondary_y": True}], [{}]],
-                                   shared_xaxes=True,
-                                   vertical_spacing=0.05,
-                                   row_heights=[0.5, 0.5])
+        self.trading_chart = make_subplots(
+            rows=2, cols=1,
+            specs=[[{"secondary_y": True}], [{}]],
+            shared_xaxes=True,
+            vertical_spacing=0.05,
+            row_heights=[0.5, 0.5]
+        )
         self.init_chart(self.data1, 1, self.ticker)
         self.init_chart(self.data2, 2, self.ticker2)
         self.trading_chart.update_layout(
