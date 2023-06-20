@@ -167,9 +167,15 @@ def simulate():
 
         chart_name = ''.join(random.sample(string.ascii_letters + string.digits, 16))
         str_obj = StringIO()
-        alg.chart.write_html(str_obj, 'html')
+        alg.trading_chart.write_html(str_obj, 'html')
         buf = str_obj.getvalue().encode()
         aws_connections.put_s3_item(aws_connections.S3, chart_name, buf, 'text/html')
+
+        portfolio_chart_name = ''.join(random.sample(string.ascii_letters + string.digits, 16))
+        str_obj = StringIO()
+        alg.progress_chart.write_html(str_obj, 'html')
+        buf = str_obj.getvalue().encode()
+        aws_connections.put_s3_item(aws_connections.S3, portfolio_chart_name, buf, 'text/html')
 
         dynamodb_item = dict()
         dynamodb_item.update({
@@ -196,6 +202,7 @@ def simulate():
     response = dict()
     response.update(alg.simulation_stats)
     response['trading_chart'] = aws_connections.get_s3_bucket_item_link(chart_name)
+    response['portfolio_evolution'] = aws_connections.get_s3_bucket_item_link(portfolio_chart_name)
 
     return jsonify(response), 200
 
