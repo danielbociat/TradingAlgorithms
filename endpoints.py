@@ -5,7 +5,7 @@ import string
 from collections import defaultdict
 from decimal import Decimal
 from io import StringIO
-
+import sys, os
 from boto3.dynamodb.conditions import Key
 from flask import jsonify, request, redirect, Blueprint
 from flask_jwt_extended import (
@@ -95,9 +95,14 @@ def get_financial_data(ticker, period, interval):
     return ticker_data
 
 
+def gen_random_string():
+    return ''.join(random.sample(string.ascii_letters + string.digits, 16))
+
+
 ALGO = Blueprint('algo', __name__)
 
 
+# TODO verify configuration to be int!!
 @ALGO.route('/simulate', methods=["POST"])
 # @jwt_required()
 def simulate():
@@ -165,13 +170,13 @@ def simulate():
 
         alg.run_algorithm()
 
-        chart_name = ''.join(random.sample(string.ascii_letters + string.digits, 16))
+        chart_name = gen_random_string()
         str_obj = StringIO()
         alg.trading_chart.write_html(str_obj, 'html')
         buf = str_obj.getvalue().encode()
         aws_connections.put_s3_item(aws_connections.S3, chart_name, buf, 'text/html')
 
-        portfolio_chart_name = ''.join(random.sample(string.ascii_letters + string.digits, 16))
+        portfolio_chart_name = gen_random_string()
         str_obj = StringIO()
         alg.progress_chart.write_html(str_obj, 'html')
         buf = str_obj.getvalue().encode()
