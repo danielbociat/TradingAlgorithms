@@ -166,7 +166,7 @@ class TradingAlgorithm(ABC):
         return sortino_ratio
 
     def populate_simulation_stats(self):
-        self.simulation_stats["Number of trades"] = len(self.trades["time"])
+        self.simulation_stats["Number of trades"] = max(len(self.trades["time"])-1, 0)
         self.simulation_stats["Profitable trades"] = len(
             [y for x, y in zip([1] + self.cumulative_returns, self.cumulative_returns) if y < x]
         )
@@ -210,6 +210,11 @@ class TradingAlgorithm(ABC):
 
         self.progress_chart.add_trace(
             go.Scatter(x=self.data.index, y=benchmark_result, marker_color='green', name='S&P500'))
+        self.progress_chart.update_layout(
+            font=dict(
+                size=20,
+            )
+        )
 
 
 class MeanReversion(TradingAlgorithm):
@@ -299,7 +304,10 @@ class DoubleRSI(TradingAlgorithm):
         self.trading_chart.update_layout(
             xaxis_rangeslider_visible=False,
             xaxis2_rangeslider_visible=True,
-            xaxis_type="date"
+            xaxis_type="date",
+            font=dict(
+                size=20
+            )
         )
 
     def populate_simulation_stats(self):
@@ -400,7 +408,10 @@ class Arbitrage(TradingAlgorithm):
         self.trading_chart.update_layout(
             xaxis_rangeslider_visible=False,
             xaxis2_rangeslider_visible=True,
-            xaxis_type="date"
+            xaxis_type="date",
+            font=dict(
+                size=20
+            )
         )
 
     def add_entry_exit(self):
