@@ -92,7 +92,7 @@ class TradingAlgorithm(ABC):
         num = int(time[1])
         unit = time[-1]
 
-        return RFR_DAILY ** round(PERIOD_TO_DAYS[unit] * num)
+        return (RFR_DAILY+1) ** round(PERIOD_TO_DAYS[unit] * num) - 1
 
     def compute_alpha(self):
         benchmark_return = self.benchmark_data.iloc[-1]['Close']/self.benchmark_data.iloc[0]['Close'] - 1
@@ -148,7 +148,7 @@ class TradingAlgorithm(ABC):
 
         excess_return = returns - rfr_per_period
 
-        sharpe_ratio = excess_return.mean() / excess_return.std()
+        sharpe_ratio = excess_return.mean() / excess_return.std(ddof=0)
 
         return sharpe_ratio
 
@@ -159,8 +159,7 @@ class TradingAlgorithm(ABC):
         rfr_per_period = (1 + TradingAlgorithm.get_rfr(self.period)) ** (1 / len(returns)) - 1
 
         excess_return = returns - rfr_per_period
-
-        downside_deviation = excess_return[excess_return < 0].std()
+        downside_deviation = excess_return[excess_return < 0].std(ddof=0)
         sortino_ratio = excess_return.mean() / downside_deviation
 
         return sortino_ratio
@@ -225,7 +224,7 @@ class MeanReversion(TradingAlgorithm):
 
     def prepare_data(self):
         self.data['Moving Average'] = self.data['Close'].rolling(window=self.time_window).mean()
-        self.data['Standard Deviation'] = self.data['Close'].rolling(window=self.time_window).std()
+        self.data['Standard Deviation'] = self.data['Close'].rolling(window=self.time_window).std(ddof=0)
         self.data['Upper Band'] = self.data['Moving Average'] + (self.data['Standard Deviation'] * 2)
         self.data['Lower Band'] = self.data['Moving Average'] - (self.data['Standard Deviation'] * 2)
         self.data['Signal'] = 0
@@ -328,7 +327,7 @@ class Arbitrage(TradingAlgorithm):
         self.data = pd.concat([self.data1['Close'], self.data2['Close']], axis=1, join='inner')
         self.data.columns = ['Data 1', 'Data 2']
         self.data['Spread'] = self.data['Data 1'] - self.data['Data 2']
-        self.data['Z-Score'] = (self.data['Spread'] - self.data['Spread'].mean()) / self.data['Spread'].std()
+        self.data['Z-Score'] = (self.data['Spread'] - self.data['Spread'].mean()) / self.data['Spread'].std(ddof=0)
         self.data['Position'] = 0
 
         self.update_chart()
