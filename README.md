@@ -7,10 +7,6 @@ GitHub Link: https://github.com/danielbociat/TradingAlgorithms
 
 GitLab Link: https://gitlab.upt.ro/daniel.bociat/TradingAlgorithms
 
-For local development:
-
-- Firstly an AWS account has to be set up, follow the next steps to correctly configure an account.
-
 ## AWS Account Setup ##
 
 1. Create an AWS account and set up the following services: Secrets Manager, DynamoDB, S3
