@@ -5,7 +5,6 @@ import string
 from collections import defaultdict
 from decimal import Decimal
 from io import StringIO
-import sys, os
 from boto3.dynamodb.conditions import Key
 from flask import jsonify, request, redirect, Blueprint
 from flask_jwt_extended import (
@@ -102,9 +101,8 @@ def gen_random_string():
 ALGO = Blueprint('algo', __name__)
 
 
-# TODO verify configuration to be int!!
 @ALGO.route('/simulate', methods=["POST"])
-# @jwt_required()
+@jwt_required()
 def simulate():
     try:
         algorithm_parameters = dict()
@@ -136,6 +134,12 @@ def simulate():
             rsi_short_period = data.get("rsi_short_period", 14)
             rsi_long_period = data.get("rsi_long_period", 28)
 
+            if not (type(rsi_long_period) is int and type(rsi_long_period) is int):
+                return "The RSI periods must be positive integers", 400
+
+            if not (rsi_long_period > 0 and rsi_long_period > 0):
+                return "The RSI periods must be positive integers", 400
+
             algorithm_parameters["rsi_short_period"] = rsi_short_period
             algorithm_parameters["rsi_long_period"] = rsi_long_period
 
@@ -144,6 +148,12 @@ def simulate():
         elif algorithm == "mean_reversion":
             time_window = data.get("time_window", 20)
 
+            if not (type(time_window) is int):
+                return "The time window must be strictly positive integer", 400
+
+            if time_window <= 0:
+                return "The time window must be strictly positive integer", 400
+
             algorithm_parameters["time_window"] = time_window
 
             alg = MeanReversion(ticker_data, ticker, period, interval, time_window)
@@ -151,6 +161,13 @@ def simulate():
         elif algorithm == "arbitrage":
             entry_threshold = data.get("entry_threshold", 2)
             exit_threshold = data.get("exit_threshold", 0)
+
+            if not ((type(entry_threshold) is int or type(entry_threshold) is float) and (type(exit_threshold) is int or type(exit_threshold) is float)):
+                return "The entry_threshold and exit_threshold must be non-negative numbers", 400
+
+            if entry_threshold < 0 or exit_threshold < 0:
+                return "The entry_threshold and exit_threshold must be non-negative numbers", 400
+
             ticker2 = data.get("ticker2", "SPY")
 
             algorithm_parameters["entry_threshold"] = entry_threshold
@@ -257,7 +274,7 @@ STATS = Blueprint('stats', __name__, url_prefix='/stats')
 
 
 @STATS.route('/algorithm/<algorithm>', methods=["GET"])
-# @jwt_required()
+@jwt_required()
 def statistics(algorithm):
     response = aws_connections.DYNAMODB_TABLE.query(
         KeyConditionExpression=Key('algorithm').eq(algorithm)
