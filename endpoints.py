@@ -128,6 +128,8 @@ def simulate():
         if algorithm not in ALGORITHMS:
             return "The selected algorithm does not exist" + CHECK_CONFIG, 400
 
+        benchmark_data = get_financial_data("SPY", period, interval)
+
         alg = None
 
         if algorithm == "double_rsi":
@@ -143,7 +145,7 @@ def simulate():
             algorithm_parameters["rsi_short_period"] = rsi_short_period
             algorithm_parameters["rsi_long_period"] = rsi_long_period
 
-            alg = DoubleRSI(ticker_data, ticker, period, interval, rsi_short_period, rsi_long_period)
+            alg = DoubleRSI(ticker_data, ticker, period, interval, benchmark_data, rsi_short_period, rsi_long_period)
 
         elif algorithm == "mean_reversion":
             time_window = data.get("time_window", 20)
@@ -156,7 +158,7 @@ def simulate():
 
             algorithm_parameters["time_window"] = time_window
 
-            alg = MeanReversion(ticker_data, ticker, period, interval, time_window)
+            alg = MeanReversion(ticker_data, ticker, period, interval, benchmark_data, time_window)
 
         elif algorithm == "arbitrage":
             entry_threshold = data.get("entry_threshold", 2)
@@ -179,7 +181,7 @@ def simulate():
             if arbitrage_data.empty:
                 return "The ticker {ticker} does not exist or has been removed".format(ticker=ticker2), 400
 
-            alg = Arbitrage(ticker_data, ticker, period, interval, arbitrage_data, ticker2, entry_threshold,
+            alg = Arbitrage(ticker_data, ticker, period, interval, benchmark_data, arbitrage_data, ticker2, entry_threshold,
                             exit_threshold)
 
         if alg is None:
