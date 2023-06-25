@@ -167,7 +167,7 @@ class TradingAlgorithm(ABC):
     def populate_simulation_stats(self):
         self.simulation_stats["Number of trades"] = max(len(self.trades["time"])-1, 0)
         self.simulation_stats["Profitable trades"] = len(
-            [y for x, y in zip([1] + self.cumulative_returns, self.cumulative_returns) if y < x]
+            [y for x, y in zip([1] + self.cumulative_returns, self.cumulative_returns) if y > x]
         )
         self.simulation_stats["Strategy Result"] = self.cumulative_returns[-1] - 1
         self.simulation_stats["Max Profit"] = float(np.nanmax(self.cumulative_returns) - 1)
