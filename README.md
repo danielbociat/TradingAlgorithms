@@ -16,7 +16,7 @@ GitLab Link: https://gitlab.upt.ro/daniel.bociat/TradingAlgorithms
 3. Add the permissions for the services mentioned above to the user by using AWS IAM
 4. Add the account region in the 'config.ini' file
 5. For Secrets Manager create a secret called 'jwt_secret_key' where the JWT secret key is added
-6. For Secrets Manager create a second secret called 'credential' using plaintext in the format:
+6. For Secrets Manager create a second secret called 'credentials' using plaintext in the format:
     ```{"credentials" : {"username":"YOUR_USERNAME","password":"YOUR_PASSWORD"}}```, 'YOUR_USERNAME' and 'YOUR_PASSWORD' may
     be replaced with credentials of your choosing.
 7. For DynamoDB create a Table with the partition key: 'algorithm' and sort key: 'timestamp'
