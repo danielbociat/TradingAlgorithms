@@ -9,7 +9,9 @@ GitLab Link: https://gitlab.upt.ro/daniel.bociat/TradingAlgorithms
 
 For local development:
 
-- Firstly an AWS account has to be set up, follow the next steps to correctly configure an account:
+- Firstly an AWS account has to be set up, follow the next steps to correctly configure an account.
+
+## AWS Account Setup ##
 
 1. Create an AWS account and set up the following services: Secrets Manager, DynamoDB, S3
     Note: to run the system locally Elastic Beanstalk and CodePipeline are not used
@@ -46,7 +48,7 @@ For local development:
 10. Add the S3 Bucket name in the 'config.ini' file
 
 
-- To start the application locally:
+## Running the Application Locally ##
 
 1. Install the Python packages found in requirements.txt by using ```pip install -r requirements.txt```
     Note: Use Python 3.8 or newer
