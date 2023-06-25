@@ -42,7 +42,7 @@ For local development:
 
 - To start the application locally:
 
-1. Install the Python packages found in requirements.txt by using pip install -r requirements.txt
+1. Install the Python packages found in requirements.txt by using "pip install -r requirements.txt"
     Note: Use Python 3.8 or newer
 
 2. Run the application.py file, either using a command "py application.py", either directly from the IDE (PyCharm was used for development)
