@@ -21,10 +21,11 @@ PERIOD_TO_DAYS = {
 
 
 class TradingAlgorithm(ABC):
-    def __init__(self, ticker, period, interval):
+    def __init__(self, ticker, period, interval, benchmark_data):
         self.ticker = ticker
         self.period = period
         self.interval = interval
+        self.benchmark_data = benchmark_data
 
         self.data = None
         self.trading_chart = None
@@ -36,7 +37,6 @@ class TradingAlgorithm(ABC):
             "price": [],
             "mode": []
         }
-        self.benchmark_data = yf.download("SPY", period=self.period, interval=self.interval)
 
     def run_algorithm(self):
         self.prepare_data()
@@ -217,8 +217,8 @@ class TradingAlgorithm(ABC):
 
 
 class MeanReversion(TradingAlgorithm):
-    def __init__(self, data, ticker, period, interval, time_window=20):
-        super().__init__(ticker, period, interval)
+    def __init__(self, data, ticker, period, interval, benchmark_data, time_window=20):
+        super().__init__(ticker, period, interval, benchmark_data)
         self.data = data
         self.time_window = time_window
 
@@ -260,8 +260,8 @@ class MeanReversion(TradingAlgorithm):
 
 
 class DoubleRSI(TradingAlgorithm):
-    def __init__(self, data, ticker, period, interval, rsi_short_period=14, rsi_long_period=28):
-        super().__init__(ticker, period, interval)
+    def __init__(self, data, ticker, period, interval, benchmark_data, rsi_short_period=14, rsi_long_period=28):
+        super().__init__(ticker, period, interval, benchmark_data)
         self.data = data
         self.rsi_short_period = rsi_short_period
         self.rsi_long_period = rsi_long_period
@@ -315,8 +315,8 @@ class DoubleRSI(TradingAlgorithm):
 
 
 class Arbitrage(TradingAlgorithm):
-    def __init__(self, data, ticker, period, interval, arbitrage_data, ticker2, entry_threshold=2, exit_threshold=0):
-        super().__init__(ticker, period, interval)
+    def __init__(self, data, ticker, period, interval, benchmark_data,  arbitrage_data, ticker2, entry_threshold=2, exit_threshold=0):
+        super().__init__(ticker, period, interval, benchmark_data)
         self.data1 = data
         self.data2 = arbitrage_data
         self.entry_threshold = entry_threshold
@@ -442,6 +442,7 @@ class Arbitrage(TradingAlgorithm):
 
     def remove_gaps_chart(self):
         super().remove_gaps_chart()
-        self.trading_chart.update_xaxes(rangebreaks=[
-            dict(bounds=[16, 9.5], pattern='hour'),
-        ])
+        if "m" in self.interval:
+            self.trading_chart.update_xaxes(rangebreaks=[
+                dict(bounds=[16, 9.5], pattern='hour'),
+            ])
