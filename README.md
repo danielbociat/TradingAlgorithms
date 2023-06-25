@@ -2,7 +2,9 @@
 
 ## Bachelor Thesis ## 
 Deployed version: http://trading-algorithms.eu-central-1.elasticbeanstalk.com/
+
 GitHub Link: https://github.com/danielbociat/TradingAlgorithms
+
 GitLab Link: https://gitlab.upt.ro/daniel.bociat/TradingAlgorithms
 
 For local development:
@@ -22,7 +24,7 @@ For local development:
 7. For DynamoDB create a Table with the partition key: 'algorithm' and sort key: 'timestamp'
 8. Add the DynamoDB Table name in the 'config.ini' file
 9. Create a public S3 bucket with the following policy and replace 'BUCKET_NAME' with your bucket value:
-
+```
 {
     "Version": "2012-10-17",
     "Statement": [
@@ -39,6 +41,7 @@ For local development:
         }
     ]
 }
+```
 
 10. Add the S3 Bucket name in the 'config.ini' file
 
