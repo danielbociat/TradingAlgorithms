@@ -221,7 +221,7 @@ def simulate():
 
     except Exception as e:
         print(e)
-        return "Simulation failed", 400
+        return e, 400
 
     response = dict()
     response.update(alg.simulation_stats)
