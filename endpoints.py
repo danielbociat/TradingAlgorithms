@@ -221,7 +221,7 @@ def simulate():
 
     except Exception as e:
         print(e)
-        return e, 400
+        return jsonify(e), 400
 
     response = dict()
     response.update(alg.simulation_stats)
