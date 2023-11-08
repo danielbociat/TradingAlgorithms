@@ -1,6 +1,9 @@
 # TradingAlgorithms
 
 ## Bachelor Thesis ## 
+
+Documentation: https://drive.google.com/file/d/15Ul8PpKWxp8byVVx34sEEmAmqHMc2thJ/view?usp=sharing
+
 Deployed version: http://trading-algorithms.eu-central-1.elasticbeanstalk.com/
 
 GitHub Link: https://github.com/danielbociat/TradingAlgorithms
